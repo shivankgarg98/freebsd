@@ -1,0 +1,9 @@
+R0ugh N0tes-
+1. write parsing rules to parse the command string
+2. implement those rules using system calls(ioctl) and SIOCAIFADDR(for IPv4) and SIOCAIFADDR_IN6(for IPv6) - https://groups.google.com/forum/#!topic/fa.freebsd.hackers/LWIW5SYtjY8
+3. implementing checks according to above rules to prevent jail from setting the particular IP address.
+
+...
+...
+...
+
