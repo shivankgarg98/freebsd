@@ -22,6 +22,17 @@ static int ipacl_enabled = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ipacl_enabled, 0, "Enforce mac_ipacl policy");
 
+
+static void ipacl_init()
+{
+	uprintf("\t INIT: macip_acl loaded\n");
+}
+
+static void ipacl_destroy()
+{
+	uprintf("\t DESTROY: mac_ipacl unloaded\n");
+}
+
 static int ipacl_priv_grant(struct ucred *cred, int priv)
 {
 	uprintf("\t ipacl_priv_grant + ");
@@ -32,6 +43,11 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
 	return 0;
 }
 
+static int mac_ifnet_check_ioctl(struct ucred *cred, struct ifnet *ifp)
+{
+
+	return 0;
+}	
 /* Declare this module to the rest of the kernel */
 
 /*
@@ -41,6 +57,8 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
 static struct mac_policy_ops ipacl_ops =
 {
 	.mpo_priv_grant = ipacl_priv_grant,
+	.mpo_init = ipacl_init,
+	.mpo_destroy = ipacl_destroy,
 	/*
 	 *
 	 */

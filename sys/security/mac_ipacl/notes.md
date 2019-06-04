@@ -23,4 +23,6 @@ Commands-
 1. kld
 	* kldstat
 	* kldload /usr/obj/usr/home/shivank/freebsd/amd64.amd64/sys/security/mac_ipacl/mac_ipacl.ko
-	* kldunload mac_ipacl 
+	* kldunload mac_ipacl
+2. make
+	* make obj depend all #create obj in /boot/modules, can be loaded and unloaded by just names
