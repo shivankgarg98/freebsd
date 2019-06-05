@@ -143,8 +143,6 @@ void	mac_devfs_update(struct mount *mp, struct devfs_dirent *de,
 void	mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 
-int	mac_ifnet_check_ioctl(struct ucred *cred, struct ifreq *ifr,
-	       	struct ifnet *ifp); 
 int	mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m);
 void	mac_ifnet_create(struct ifnet *ifp);
 void	mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m);
@@ -154,6 +152,9 @@ int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
+
+int	mac_inet_check_ioctl(struct ipq *q, int);
+int	mac_inet6_check_ioctl(struct ip6q *q6, int);
 
 int	mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m);
 int	mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp);

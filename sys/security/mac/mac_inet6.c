@@ -173,6 +173,10 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 	    q6->ip6q_label);
 }
 
+int
+mac_inet6_check_ioctl(struct ip6q *q, int flag){
+	return 0;
+}
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
 {

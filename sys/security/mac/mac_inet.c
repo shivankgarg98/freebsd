@@ -108,6 +108,11 @@ mac_inpcb_init(struct inpcb *inp, int flag)
 	return (0);
 }
 
+int
+mac_inet_check_ioctl(struct ipq *q, int flag)
+{
+	return 0;
+}
 static struct label *
 mac_ipq_label_alloc(int flag)
 {
@@ -507,3 +512,4 @@ mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 	MAC_POLICY_PERFORM_NOSLEEP(syncache_create_mbuf, sc_label, m,
 	    mlabel);
 }
+
