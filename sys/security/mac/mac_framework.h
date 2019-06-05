@@ -143,6 +143,7 @@ void	mac_devfs_update(struct mount *mp, struct devfs_dirent *de,
 void	mac_devfs_vnode_associate(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
 
+int mac_ifnet_check_ioctl(struct ucred *cred, struct ifnet *ifp); 
 int	mac_ifnet_check_transmit(struct ifnet *ifp, struct mbuf *m);
 void	mac_ifnet_create(struct ifnet *ifp);
 void	mac_ifnet_create_mbuf(struct ifnet *ifp, struct mbuf *m);
