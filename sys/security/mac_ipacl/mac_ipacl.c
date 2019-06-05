@@ -22,6 +22,14 @@ static int ipacl_enabled = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ipacl_enabled, 0, "Enforce mac_ipacl policy");
 
+/*
+ *
+ */
+
+/*
+ * enforce this policy only on jail
+ */
+
 
 static void ipacl_init()
 {
@@ -33,6 +41,7 @@ static void ipacl_destroy()
 	uprintf("\t DESTROY: mac_ipacl unloaded\n");
 }
 
+
 static int ipacl_priv_grant(struct ucred *cred, int priv)
 {
 	uprintf("\t ipacl_priv_grant + ");
@@ -43,7 +52,7 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
 	return 0;
 }
 
-static int mac_ifnet_check_ioctl(struct ucred *cred, struct ifnet *ifp)
+static int mac_ifnet_check_ioctl(struct ucred *cred, struct ifreq *ifr, struct ifnet *ifp)
 {
 
 	return 0;
