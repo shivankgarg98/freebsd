@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <security/mac/mac_framework.h>
+
 int
 prison_qcmp_v6(const void *ip1, const void *ip2)
 {
@@ -410,7 +412,16 @@ prison_check_ip6(const struct ucred *cred, const struct in6_addr *ia6)
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
-
+	/*
+	 * Checks if the IPv6 addr is allowed by our MAC policy
+	 */
+#ifdef MAC
+	error = mac_inet6_check_ioctl(cred,ia6);
+	if (error){
+		mtx_unlock(&pr->pr_mtx);
+		return error;
+	}
+#endif
 	error = prison_check_ip6_locked(pr, ia6);
 	mtx_unlock(&pr->pr_mtx);
 	return (error);

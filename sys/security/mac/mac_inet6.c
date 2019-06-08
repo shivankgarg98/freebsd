@@ -173,8 +173,14 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 	    q6->ip6q_label);
 }
 
+/*
+ * return 0 if the IPv4 address is allowed for the jail
+ * if MAC policy doesn't allow that IP address throw error
+ */
 int
-mac_inet6_check_ioctl(struct ip6q *q, int flag){
+mac_inet6_check_ioctl(const struct ucred *cred, const struct in6_addr *ia6)
+{
+	
 	return 0;
 }
 void

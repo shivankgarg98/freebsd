@@ -44,7 +44,7 @@ static void ipacl_destroy(struct mac_policy_conf *conf)
 
 static int ipacl_priv_grant(struct ucred *cred, int priv)
 {
-	uprintf("\t ipacl_priv_grant + ");
+	uprintf("\t ipacl_priv_grant +\n ");
 /*
  *
  *

@@ -89,6 +89,9 @@ struct vattr;
 struct vnode;
 struct vop_setlabel_args;
 
+struct in_addr;
+struct in6_addr;
+
 #include <sys/acl.h>			/* XXX acl_type_t */
 #include <sys/types.h>			/* accmode_t */
 
@@ -152,9 +155,11 @@ int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
-
-int	mac_inet_check_ioctl(struct ipq *q, int);
-int	mac_inet6_check_ioctl(struct ip6q *q6, int);
+/*
+ * checks if the IP address is allowed for jail
+ */
+int	mac_inet_check_ioctl(const struct ucred *cred, const struct in_addr *ia);
+int	mac_inet6_check_ioctl(const struct ucred *cred, const struct in6_addr *ia6);
 
 int	mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m);
 int	mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp);

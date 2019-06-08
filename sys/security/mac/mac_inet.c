@@ -108,11 +108,17 @@ mac_inpcb_init(struct inpcb *inp, int flag)
 	return (0);
 }
 
+/*
+ * return 0 if the IPv4 address is allowed for the jail
+ * if MAC policy doesn't allow that IP address throw error
+ */
+
 int
-mac_inet_check_ioctl(struct ipq *q, int flag)
+mac_inet_check_ioctl(const struct ucred *cred, const struct in_addr *ia)
 {
 	return 0;
 }
+
 static struct label *
 mac_ipq_label_alloc(int flag)
 {
