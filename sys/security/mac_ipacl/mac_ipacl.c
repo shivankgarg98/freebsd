@@ -51,6 +51,25 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
  */
 	return 0;
 }
+static int ip4_check_jail(struct ucred *cred, struct label *mlabel,
+                   struct in_addr *ia)
+{
+	/*
+	 * label an IPv4 address
+	 * 
+	 */
+	return 0;
+}
+
+static int ip6_check_jail(struct ucred *cred, struct label *mlabel,
+                   struct in6_addr *ia6)
+{
+	/*
+	 * label an IPv6 address
+	 * 
+	 */
+	return 0;
+}
 
 /* Declare this module to the rest of the kernel */
 
@@ -63,6 +82,9 @@ static struct mac_policy_ops ipacl_ops =
 	.mpo_priv_grant = ipacl_priv_grant,
 	.mpo_init = ipacl_init,
 	.mpo_destroy = ipacl_destroy,
+	.mpo_ip4_check_jail = ip4_check_jail,
+	.mpo_ip6_check_jail = ip6_check_jail,
+	
 	/*
 	 *
 	 */
