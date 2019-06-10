@@ -405,7 +405,7 @@ prison_check_ip4_locked(const struct prison *pr, const struct in_addr *ia)
 
 int
 prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
-{	printf("\t in_jail.c prison check ip4 \n");
+{
 	struct prison *pr;
 	int error;
 
