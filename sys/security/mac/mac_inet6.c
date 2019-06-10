@@ -181,7 +181,7 @@ int
 mac_inet6_check_ioctl(const struct ucred *cred, const struct in6_addr *ia6)
 {
 	
-	return 0;
+	return 1; 
 }
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)

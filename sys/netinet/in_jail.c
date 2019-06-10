@@ -65,8 +65,6 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#include <security/mac/mac_framework.h>
-
 int
 prison_qcmp_v4(const void *ip1, const void *ip2)
 {
@@ -407,7 +405,7 @@ prison_check_ip4_locked(const struct prison *pr, const struct in_addr *ia)
 
 int
 prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
-{
+{	printf("\t in_jail.c prison check ip4 \n");
 	struct prison *pr;
 	int error;
 
@@ -426,17 +424,6 @@ prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
-
-	/*
-	 * Checks if the IPv4 addr is allowed by our MAC policy
-	 */
-#ifdef MAC
-	error = mac_inet_check_ioctl(cred, ia);
-	if (error){
-		mtx_unlock(&pr->pr_mtx);
-		return error;
-	}
-#endif
 
 	error = prison_check_ip4_locked(pr, ia);
 	mtx_unlock(&pr->pr_mtx);

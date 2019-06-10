@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#include <security/mac/mac_framework.h>
 static int in_aifaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 static int in_difaddr_ioctl(u_long, caddr_t, struct ifnet *, struct thread *);
 
@@ -249,6 +250,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (error);
 	case OSIOCAIFADDR:	/* 9.x compat */
 	case SIOCAIFADDR:
+		printf("\t in_control+ \n");
 		sx_xlock(&in_control_sx);
 		error = in_aifaddr_ioctl(cmd, data, ifp, td);
 		sx_xunlock(&in_control_sx);
@@ -336,6 +338,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	const struct sockaddr_in *broadaddr = &ifra->ifra_broadaddr;
 	const struct sockaddr_in *mask = &ifra->ifra_mask;
 	const struct sockaddr_in *dstaddr = &ifra->ifra_dstaddr;
+	printf("\t in_aifaddr_ioctl \n");
 	const int vhid = (cmd == SIOCAIFADDR) ? ifra->ifra_vhid : 0;
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
@@ -372,6 +375,24 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	/*
 	 * See whether address already exist.
 	 */
+
+	/*
+	 * if MAC and VIMAGE are defined, check to block only
+	 * jails from setting their IPv4 addr
+	 */
+#if defined (MAC) && defined (VIMAGE)
+	if(td->td_ucred->cr_prison == NULL)
+		printf("creds are not of jail");
+	else
+		printf("This is from jail");
+	printf("in.c #if MAC and VIMAGE");
+	//error = mac_inet_check_ioctl(td->td_ucred, &addr->sin_addr);
+	if(error) {
+		return (error);
+	}
+
+#endif
+
 	iaIsFirst = true;
 	ia = NULL;
 	NET_EPOCH_ENTER(et);
@@ -446,6 +467,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
                 ia->ia_dstaddr = ia->ia_addr;
 
 	if (vhid != 0) {
+		printf("\t vhid != 0 in_aifaddr");
 		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
 		if (error)
 			return (error);
@@ -468,6 +490,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * and to validate the address if necessary.
 	 */
 	if (ifp->if_ioctl != NULL) {
+		printf("\t ifp->if_ioctl != NULL \n");
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error)
 			goto fail1;
@@ -622,8 +645,10 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 	in_ifadown(&ia->ia_ifa, 1);
 
-	if (ia->ia_ifa.ifa_carp)
+	if (ia->ia_ifa.ifa_carp) {
+		printf("\t in_difaddr_ioctl+ \n");		
 		(*carp_detach_p)(&ia->ia_ifa, cmd == SIOCAIFADDR);
+	}
 
 	/*
 	 * If this is the last IPv4 address configured on this

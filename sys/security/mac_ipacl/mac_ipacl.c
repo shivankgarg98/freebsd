@@ -33,22 +33,22 @@ SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
 
 static void ipacl_init(struct mac_policy_conf *conf)
 {
-	uprintf("\t INIT: macip_acl loaded\n");
+	printf("\t INIT: macip_acl loaded\n");
 }
 
 static void ipacl_destroy(struct mac_policy_conf *conf)
 {
-	uprintf("\t DESTROY: mac_ipacl unloaded\n");
+	printf("\t DESTROY: mac_ipacl unloaded\n");
 }
 
 
 static int ipacl_priv_grant(struct ucred *cred, int priv)
 {
-	uprintf("\t ipacl_priv_grant +\n ");
+	printf("\t ipacl_priv_grant +\n ");
 /*
  *
  *
- */
+ */	return (EPERM);
 	return 0;
 }
 static int ip4_check_jail(struct ucred *cred, struct label *mlabel,

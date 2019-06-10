@@ -116,7 +116,8 @@ mac_inpcb_init(struct inpcb *inp, int flag)
 int
 mac_inet_check_ioctl(const struct ucred *cred, const struct in_addr *ia)
 {
-	return 0;
+	uprintf("\tmac_inet_check_ioctl +\n ");	
+	return (EAFNOSUPPORT);
 }
 
 static struct label *

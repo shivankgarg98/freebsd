@@ -112,7 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
-
+#include <security/mac/mac_framework.h>
 /*
  * struct in6_ifreq and struct ifreq must be type punnable for common members
  * of ifr_ifru to allow accessors to be shared.
@@ -556,7 +556,25 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	{
 		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
+		/*
+		*If MAC and VNET are deined, check the credentials
+		*only block jails from setting their IPv6 addr
+		*/
+#if defined (MAC) && defined (VIMAGE)
+		/*
+		 * check td_ucred to block only for jails, if host uses ifconfig then don't block
+		 */
+		/*
+		 *initially I checked for td_cred->cr_prison != NULL
+		 *But it was blocking for all call
+		 */
+		printf("ifdef condition in6.c"); 
+		error = mac_inet6_check_ioctl(td->td_ucred, &sa6->sin6_addr);
+		if (error) {
+			goto out;
+		}
 
+#endif
 		/*
 		 * first, make or update the interface address structure,
 		 * and link it to the list.

@@ -25,4 +25,5 @@ Commands-
 	* kldload /usr/obj/usr/home/shivank/freebsd/amd64.amd64/sys/security/mac_ipacl/mac_ipacl.ko
 	* kldunload mac_ipacl
 2. make
-	* make obj depend all #create obj in /boot/modules, can be loaded and unloaded by just names
+	* make obj depend all install #create obj in /boot/modules, can be loaded and unloaded by just names
+	* make -j 4 KERNCONF=VIMAGE kernel -DKERNFAST
