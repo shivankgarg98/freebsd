@@ -5,7 +5,7 @@ TODO-
 
 
 --------------------------------------------------------------------------
-R0ugh N0tes-
+Rough Notes-
 1. 
 
 
@@ -13,7 +13,6 @@ R0ugh N0tes-
 
 -------------------------------------------------------------------------
 Issues -
-1. ~~Implement td_ucred to only for prison, and not for host~~
 2. iocage jail doesn't start due to "Configuring VNET Failed"
 
 
