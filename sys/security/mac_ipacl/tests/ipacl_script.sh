@@ -19,42 +19,28 @@ test_ip() {
 	jid=${5} #if jid = 0 then assume host
 
 	if [ "${proto}" = "ipv4" ]; then
-			if [ "${jid}" = "0" ]; then
-		        out=$(
-		        echo | ifconfig ${interface} ${address}/${prefix} up
-		        wait
-		        )
-	                else
-		        out=$(
-		        echo | jexec ${jid} ifconfig ${interface} ${address}/${prefix} up
-		        wait
-		        )
+			if [ "${jid}" -eq 0 ]; then
+				echo | ifconfig ${interface} ${address}/${prefix} up
+				RetVal=$?
+			else
+				echo | jexec ${jid} ifconfig ${interface} ${address}/${prefix} up
+				RetVal=$?
 	                fi
 	elif [ "${proto}" = "ipv6" ]; then
-			if [ "${jid}" = "0" ]; then
-		        out=$(
-		        echo | ifconfig ${interface} inet6 ${address} prefixlen ${prefix}
-		        wait
-		        )
+			if [ "${jid}" -eq 0 ]; then
+				echo | ifconfig ${interface} inet6 ${address} prefixlen ${prefix}
+				RetVal=$?
 	                else
-		        out=$(
-		        echo | jexec ${jid} ifconfig ${interface} inet6 ${address} prefixlen ${prefix}
-		        wait
-		        )
+				echo | jexec ${jid} ifconfig ${interface} inet6 ${address} prefixlen ${prefix}
+				RetVal=$?
 	                fi
 	fi
-	
-	case "${out}" in
-		"SIOCAIFADDR" | "TODO-update error")
-			echo fl
-			;;
-		"mac_inet*" | "	*")
-			echo ok
-			;;
-		*)
-			echo "${out}"
-			;;
-	esac
+	if [ ${RetVal} -eq 0 ]; then
+		echo ok
+	else
+		echo fl
+	fi
+
 }
 
 exec_test() {
@@ -68,11 +54,11 @@ exec_test() {
 
 	out=$(test_ip "${proto}" "${interface}" "${address}" "${prefix}" "${jid}")
         if [ "${out}" = "${expect_with_rule}" ]; then
-                echo "ok ${ntest}"
+                echo "ok : PASS ${ntest}"
         elif [ "${out}" = "ok" ] || [ "${out}" = "fl" ]; then
-                echo "not ok ${ntest} # '${out}' != '${expect_with_rule}'"
+                echo "not ok : FAIL ${ntest} # '${out}' != '${expect_with_rule}'"
         else
-                echo "not ok ${ntest} # unexpected output: '${out}'"
+                echo "not ok :  FAIL ${ntest} # unexpected output: '${out}'"
         fi
         : $(( ntest += 1 ))
 }
