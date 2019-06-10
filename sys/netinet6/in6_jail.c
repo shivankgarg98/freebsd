@@ -410,7 +410,7 @@ prison_check_ip6(const struct ucred *cred, const struct in6_addr *ia6)
 		mtx_unlock(&pr->pr_mtx);
 		return (EAFNOSUPPORT);
 	}
-	
+
 	error = prison_check_ip6_locked(pr, ia6);
 	mtx_unlock(&pr->pr_mtx);
 	return (error);
