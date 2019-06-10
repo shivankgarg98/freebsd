@@ -1,7 +1,15 @@
+TODO-
+1. prevent jails from configuring their IP address only when mac_ipacl is loaded
+   currently it prevent jails everytime.
+2. label an IP address for the jail which does not give EPERM error
+
+
+--------------------------------------------------------------------------
 R0ugh N0tes-
-1. write parsing rules to parse the command string
-2. implement those rules using system calls(ioctl) and SIOCAIFADDR(for IPv4) and SIOCAIFADDR_IN6(for IPv6) - https://groups.google.com/forum/#!topic/fa.freebsd.hackers/LWIW5SYtjY8
-3. implementing checks according to above rules to prevent jail from setting the particular IP address.
+1. 
+
+
+
 
 -------------------------------------------------------------------------
 Issues -
