@@ -180,8 +180,8 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 int
 mac_inet6_check_ioctl(const struct ucred *cred, const struct in6_addr *ia6)
 {
-	
-	return 1; 
+	uprintf("\t mac_inet6.c mac_inet6_check_ioctl\n");
+	return (EPERM); 
 }
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)

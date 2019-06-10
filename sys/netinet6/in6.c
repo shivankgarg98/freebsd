@@ -564,16 +564,13 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		/*
 		 * check td_ucred to block only for jails, if host uses ifconfig then don't block
 		 */
-		/*
-		 *initially I checked for td_cred->cr_prison != NULL
-		 *But it was blocking for all call
-		 */
-		printf("ifdef condition in6.c"); 
-		error = mac_inet6_check_ioctl(td->td_ucred, &sa6->sin6_addr);
-		if (error) {
-			goto out;
+		if(jailed(td->td_ucred)) {
+			printf("ifdef condition in6.c"); 
+			error = mac_inet6_check_ioctl(td->td_ucred, &sa6->sin6_addr);
+			if (error) {
+				goto out;
+			}
 		}
-
 #endif
 		/*
 		 * first, make or update the interface address structure,

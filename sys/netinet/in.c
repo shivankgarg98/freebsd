@@ -381,14 +381,12 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * jails from setting their IPv4 addr
 	 */
 #if defined (MAC) && defined (VIMAGE)
-	if(td->td_ucred->cr_prison == NULL)
-		printf("creds are not of jail");
-	else
-		printf("This is from jail");
-	printf("in.c #if MAC and VIMAGE");
-	//error = mac_inet_check_ioctl(td->td_ucred, &addr->sin_addr);
-	if(error) {
-		return (error);
+	if(jailed(td->td_ucred)) {
+		printf("in.c #if MAC and VIMAGE");
+		error = mac_inet_check_ioctl(td->td_ucred, &addr->sin_addr);
+		if(error) {
+			return (error);
+		}
 	}
 
 #endif

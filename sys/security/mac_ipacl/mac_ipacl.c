@@ -47,8 +47,7 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
 	printf("\t ipacl_priv_grant +\n ");
 /*
  *
- *
- */	return (EPERM);
+ */
 	return 0;
 }
 static int ip4_check_jail(struct ucred *cred, struct label *mlabel,
