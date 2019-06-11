@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -47,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -174,14 +176,39 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 }
 
 /*
- * return 0 if the IPv4 address is allowed for the jail
+ * return 0 if the IPv6 address is allowed for the jail
  * if MAC policy doesn't allow that IP address throw error
+ * NOTE - SIOCAIFADDR_IN6 is corresponding call for IPV6
  */
+
 int
-mac_inet6_check_ioctl(const struct ucred *cred, const struct in6_addr *ia6)
+mac_inet6_check_SIOCAIFADDR(struct ucred *cred, struct in6_addr *ia6)
 {
-	uprintf("\t mac_inet6.c mac_inet6_check_ioctl\n");
-	return (EPERM); 
+	int mib[4];
+	size_t mibsize;
+	int ipv6_allow = 0;
+	size_t len = sizeof(len);
+	int error; 
+
+	if(!jailed(cred))
+		return 0;
+
+	printf("\t mac_inet6.c mac_inet6_check_ioctl\n");
+
+	if (sysctlnametomib("security.mac.ipacl.ipv6", mib, &mibsize) == -1) {
+        return -1;
+	}
+
+	error = sysctl(mib, 4, &ipv6_allow, &len, NULL, 0);
+	
+	if(error)
+        return (error);
+	
+	if(ipv6_allow)
+		return 0;
+	
+	return (EPERM);
+	
 }
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)

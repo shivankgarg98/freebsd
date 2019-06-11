@@ -557,19 +557,14 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
 		/*
-		*If MAC and VNET are deined, check the credentials
+		*If MAC is defined, check the credentials
 		*only block jails from setting their IPv6 addr
 		*/
-#if defined (MAC) && defined (VIMAGE)
-		/*
-		 * check td_ucred to block only for jails, if host uses ifconfig then don't block
-		 */
-		if(jailed(td->td_ucred)) {
-			printf("ifdef condition in6.c"); 
-			error = mac_inet6_check_ioctl(td->td_ucred, &sa6->sin6_addr);
-			if (error) {
-				goto out;
-			}
+#ifdef MAC
+		printf("ifdef condition in6.c"); 
+		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred, &sa6->sin6_addr);
+		if (error) {
+			goto out;
 		}
 #endif
 		/*

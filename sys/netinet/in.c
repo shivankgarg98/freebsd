@@ -377,18 +377,14 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 
 	/*
-	 * if MAC and VIMAGE are defined, check to block only
+	 * for MAC policy check to block only
 	 * jails from setting their IPv4 addr
 	 */
-#if defined (MAC) && defined (VIMAGE)
-	if(jailed(td->td_ucred)) {
-		printf("in.c #if MAC and VIMAGE");
-		error = mac_inet_check_ioctl(td->td_ucred, &addr->sin_addr);
-		if(error) {
-			return (error);
-		}
+#ifdef MAC
+	error = mac_inet_check_SIOCAIFADDR(td->td_ucred, &addr->sin_addr);
+	if(error) {
+		return (error);
 	}
-
 #endif
 
 	iaIsFirst = true;
