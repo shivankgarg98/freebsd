@@ -10,6 +10,7 @@
 #include <sys/priv.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
+#include <sys/jail.h>
 
 #include <security/mac/mac_policy.h>
 
@@ -24,6 +25,7 @@ SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
 
 /*
  * enforce this policy only on jail for now
+ * sysctl ipv4 and ipv6 to allow/disallow jail
  */
 
 static int ipacl_ipv4 = 1;
@@ -55,34 +57,37 @@ static int ipacl_priv_grant(struct ucred *cred, int priv)
 	/*printf("\t ipacl_priv_grant +\n ");*/
 	return 0;
 }
-static int ip4_check_jail(struct ucred *cred, struct label *mlabel,
-                   struct in_addr *ia)
+static int ipacl_ip4_check_jail(struct ucred *cred, const struct in_addr *ia)
 {
-	return 0;
+	/*function only when ipacl is enabled and it is a jail*/
+	if(!ipacl_enabled || !jailed(cred))
+		return 0;
+	
+	if(ipacl_ipv4)
+		return 0;
+
+	return (EPERM);
 }
 
-static int ip6_check_jail(struct ucred *cred, struct label *mlabel,
-                   struct in6_addr *ia6)
+static int ipacl_ip6_check_jail(struct ucred *cred, const struct in6_addr *ia6)
 {
-	return 0;
-}
+	/*function only when ipacl is enabled and it is a jail*/
+	if(!ipacl_enabled || !jailed(cred))
+		return 0;
+	
+	if(ipacl_ipv6)
+		return 0;
 
-
-static int ipacl_system_check_sysctl(struct ucred *cred, struct sysctl_oid *oidp,
-		void *arg1, int arg2, struct sysctl_req *req)
-{
-	return 0;
+	return (EPERM);
 }
-/* Declare this module to the rest of the kernel */
 
 static struct mac_policy_ops ipacl_ops =
 {
 	.mpo_priv_grant = ipacl_priv_grant,
 	.mpo_init = ipacl_init,
 	.mpo_destroy = ipacl_destroy,
-	.mpo_ip4_check_jail = ip4_check_jail,
-	.mpo_ip6_check_jail = ip6_check_jail,
-	.mpo_system_check_sysctl = ipacl_system_check_sysctl,
+	.mpo_ip4_check_jail = ipacl_ip4_check_jail,
+	.mpo_ip6_check_jail = ipacl_ip6_check_jail,
 	
 	/*
 	 *

@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
-#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -62,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
@@ -116,32 +114,13 @@ mac_inpcb_init(struct inpcb *inp, int flag)
  */
 
 int
-mac_inet_check_SIOCAIFADDR(struct ucred *cred, struct in_addr *ia)
+mac_inet_check_SIOCAIFADDR(struct ucred *cred, const struct in_addr *ia)
 {
-	int mib[4];
-	int ipv4_allow = 0;
-	size_t len;
-	int error;
+	int error; 
 
-	if(!jailed(cred)) {
-		return 0;
-	}
-
-	printf("\t mac_inet_check_ioctl \n ");
+	MAC_POLICY_CHECK(ip4_check_jail, cred, ia);
 	
-	if (sysctlnametomib("security.mac.ipacl.ipv4", mib, &len) == -1) {
-        return -1;
-	}
-	len = sizeof(int);
-	error = sysctl(mib, 4, &ipv4_allow, &len, NULL, 0);
-	
-	if(error)
-        return (error);
-	if(ipv4_allow) {
-		return 0;
-	}
-
-	return (EPERM);
+	return (error);
 }
 
 static struct label *

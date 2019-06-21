@@ -250,7 +250,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		return (error);
 	case OSIOCAIFADDR:	/* 9.x compat */
 	case SIOCAIFADDR:
-		printf("\t in_control+ \n");
 		sx_xlock(&in_control_sx);
 		error = in_aifaddr_ioctl(cmd, data, ifp, td);
 		sx_xunlock(&in_control_sx);
@@ -338,7 +337,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	const struct sockaddr_in *broadaddr = &ifra->ifra_broadaddr;
 	const struct sockaddr_in *mask = &ifra->ifra_mask;
 	const struct sockaddr_in *dstaddr = &ifra->ifra_dstaddr;
-	printf("\t in_aifaddr_ioctl \n");
 	const int vhid = (cmd == SIOCAIFADDR) ? ifra->ifra_vhid : 0;
 	struct epoch_tracker et;
 	struct ifaddr *ifa;
@@ -382,7 +380,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 #ifdef MAC
 	error = mac_inet_check_SIOCAIFADDR(td->td_ucred, &addr->sin_addr);
-	if(error) {
+	if (error) {
 		return (error);
 	}
 #endif
@@ -461,7 +459,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
                 ia->ia_dstaddr = ia->ia_addr;
 
 	if (vhid != 0) {
-		printf("\t vhid != 0 in_aifaddr");
 		error = (*carp_attach_p)(&ia->ia_ifa, vhid);
 		if (error)
 			return (error);
@@ -484,7 +481,6 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * and to validate the address if necessary.
 	 */
 	if (ifp->if_ioctl != NULL) {
-		printf("\t ifp->if_ioctl != NULL \n");
 		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
 		if (error)
 			goto fail1;
@@ -639,10 +635,8 @@ in_difaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 	in_ifadown(&ia->ia_ifa, 1);
 
-	if (ia->ia_ifa.ifa_carp) {
-		printf("\t in_difaddr_ioctl+ \n");		
+	if (ia->ia_ifa.ifa_carp)
 		(*carp_detach_p)(&ia->ia_ifa, cmd == SIOCAIFADDR);
-	}
 
 	/*
 	 * If this is the last IPv4 address configured on this

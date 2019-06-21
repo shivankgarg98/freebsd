@@ -240,14 +240,13 @@ typedef void	(*mpo_ip6q_reassemble)(struct ip6q *q6, struct label *q6label,
 		    struct mbuf *m, struct label *mlabel);
 typedef void	(*mpo_ip6q_update_t)(struct mbuf *m, struct label *mlabel,
 		    struct ip6q *q6, struct label *q6label);
+
 /*
- * policy ops checking IPv4 and IPv6 address
+ * policy ops checking IPv4 and IPv6 address for ipacl
  */
 
-typedef int	(*mpo_ip4_check_jail_t)(struct ucred *cred, struct label *mlabel,
-		   struct in_addr *ia);
-typedef int	(*mpo_ip6_check_jail_t)(struct ucred *cred, struct label *mlabel,
-		   struct in6_addr *ia6);
+typedef int	(*mpo_ip4_check_jail_t)(struct ucred *cred, const struct in_addr *ia);
+typedef int	(*mpo_ip6_check_jail_t)(struct ucred *cred, const struct in6_addr *ia6);
 
 typedef void	(*mpo_ipq_create_t)(struct mbuf *m, struct label *mlabel,
 		    struct ipq *q, struct label *qlabel);
