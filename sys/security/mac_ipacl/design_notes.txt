@@ -54,8 +54,5 @@ Points
    So, the MAC calls should run for all cases, and checks related to jails and VNET 
    should be handled later in the Policy Module
 
-2. ioctl in ioctl call name can be replaced with the ioctl.   
-
 3. vnet should be checked from socket or interface and not from the thread. This means
    we'd probably have to pass one of those in the policy as well.
-4. try to make modules based on sysctl

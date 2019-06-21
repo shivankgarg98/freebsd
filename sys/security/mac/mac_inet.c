@@ -522,4 +522,3 @@ mac_syncache_create_mbuf(struct label *sc_label, struct mbuf *m)
 	MAC_POLICY_PERFORM_NOSLEEP(syncache_create_mbuf, sc_label, m,
 	    mlabel);
 }
-

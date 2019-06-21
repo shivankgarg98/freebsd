@@ -48,15 +48,6 @@ static void ipacl_destroy(struct mac_policy_conf *conf)
 	printf("\t DESTROY: mac_ipacl unloaded\n");
 }
 
-
-static int ipacl_priv_grant(struct ucred *cred, int priv)
-{
-	if(!ipacl_enabled)
-		return 0;
-
-	/*printf("\t ipacl_priv_grant +\n ");*/
-	return 0;
-}
 static int ipacl_ip4_check_jail(struct ucred *cred, const struct in_addr *ia)
 {
 	/*function only when ipacl is enabled and it is a jail*/
@@ -83,7 +74,7 @@ static int ipacl_ip6_check_jail(struct ucred *cred, const struct in6_addr *ia6)
 
 static struct mac_policy_ops ipacl_ops =
 {
-	.mpo_priv_grant = ipacl_priv_grant,
+
 	.mpo_init = ipacl_init,
 	.mpo_destroy = ipacl_destroy,
 	.mpo_ip4_check_jail = ipacl_ip4_check_jail,
