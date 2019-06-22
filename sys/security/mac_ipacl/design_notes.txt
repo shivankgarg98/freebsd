@@ -45,6 +45,12 @@ Design Goals -
 5. In policy, we may check the jail by passing the credential and where the thread is
    and also if the thread's vnet and intefaces matches.
 
+6. How to name the jail in the policy?
+   
+   I am thinking of using jid to name the jail in the policy.
+   TO_CONFIRM- is jid same as pr_id? Yes, as seen from the function prison_find(),
+   prid == pr_id. But check once, if they are same 
+   
 Points
 (To be kept in mind) -
 --------------------

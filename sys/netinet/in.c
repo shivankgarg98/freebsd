@@ -379,7 +379,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * jails from setting their IPv4 addr
 	 */
 #ifdef MAC
-	error = mac_inet_check_SIOCAIFADDR(td->td_ucred, &addr->sin_addr);
+	error = mac_inet_check_SIOCAIFADDR(td->td_ucred, &addr->sin_addr, ifp);
 	if (error) {
 		return (error);
 	}

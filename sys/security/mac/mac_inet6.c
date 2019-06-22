@@ -180,11 +180,12 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
  */
 
 int
-mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6)
+mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6,
+    struct ifnet *ifp)
 {
 	int error;
 
-	MAC_POLICY_CHECK(ip6_check_jail, cred, ia6);
+	MAC_POLICY_CHECK(ip6_check_jail, cred, ia6, ifp);
 
 	return (error);
 	

@@ -562,7 +562,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		*/
 #ifdef MAC
 		printf("ifdef condition in6.c"); 
-		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred, &sa6->sin6_addr);
+		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred, &sa6->sin6_addr, ifp);
 		if (error) {
 			goto out;
 		}

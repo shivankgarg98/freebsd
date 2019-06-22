@@ -156,10 +156,12 @@ int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 /*
- * checks if the IP address is allowed for jail
+ * checks if the IP address is allowed for interface
  */
-int	mac_inet_check_SIOCAIFADDR(struct ucred *cred, const struct in_addr *ia);
-int	mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6);
+int	mac_inet_check_SIOCAIFADDR(struct ucred *cred,
+	    const struct in_addr *ia, struct ifnet *ifp);
+int	mac_inet6_check_SIOCAIFADDR(struct ucred *cred,
+	    const struct in6_addr *ia6, struct ifnet *ifp);
 
 int	mac_inpcb_check_deliver(struct inpcb *inp, struct mbuf *m);
 int	mac_inpcb_check_visible(struct ucred *cred, struct inpcb *inp);
