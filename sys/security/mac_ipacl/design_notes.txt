@@ -56,3 +56,8 @@ Points
 
 3. vnet should be checked from socket or interface and not from the thread. This means
    we'd probably have to pass one of those in the policy as well.
+   
+   Passing the interface ifnet to the policy will be more easy/appropriate, since only
+   it is available as arguement in in.c(in_aifaddr_ioctl) for our MAC checks. Alternatively
+   we could have moved our check to in_control() for ipv4 case like we have in IPv6 case,
+   for checking the vnet from socket.

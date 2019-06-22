@@ -1,6 +1,4 @@
 TODO-
-1. prevent jails from configuring their IP address only when mac_ipacl is loaded
-   currently it prevent jails everytime.
 2. label an IP address for the jail which does not give EPERM error
 
 
@@ -13,7 +11,6 @@ Rough Notes-
 
 -------------------------------------------------------------------------
 Issues -
-2. iocage jail doesn't start due to "Configuring VNET Failed"
 
 
 --------------------------------------------------------------------------
