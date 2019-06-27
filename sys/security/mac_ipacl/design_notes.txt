@@ -53,6 +53,8 @@ Design Goals -
    arises is how to find that jail with that jid. Search for the function that find
    your prison with given jid. check  prison_find(int jid), this will solve this problem
 
+7. should we also check for subnet the jail is choosing? If yes, then we also have to pass
+   the prefix to the framework. 
  
 Points
 (To be kept in mind) -
