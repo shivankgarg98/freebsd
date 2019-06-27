@@ -2,6 +2,8 @@
 ------------------------
 |mac_ipacl Design Notes|
 ------------------------
+[EDIT] point 6 added in goals 
+
 
 Design Goals -
 ------------
@@ -47,10 +49,11 @@ Design Goals -
 
 6. How to name the jail in the policy?
    
-   I am thinking of using jid to name the jail in the policy.
-   TO_CONFIRM- is jid same as pr_id? Yes, as seen from the function prison_find(),
-   prid == pr_id. But check once, if they are same 
-   
+   I am thinking of using jid to name the jail in the policy. But another question
+   arises is how to find that jail with that jid. Search for the function that find
+   your prison with given jid. check  prison_find(int jid), this will solve this problem
+
+ 
 Points
 (To be kept in mind) -
 --------------------

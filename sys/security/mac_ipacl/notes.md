@@ -11,7 +11,9 @@ Rough Notes-
 
 -------------------------------------------------------------------------
 Issues -
-
+1. ifconfig commands first delete the ip address and then adds the new one. So,
+if "add" is not given in parameters then the old one get lost and new one is not
+alloted, leaving the jail without IP.
 
 --------------------------------------------------------------------------
 R3s0urc3s-
