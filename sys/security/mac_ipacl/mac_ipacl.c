@@ -92,41 +92,144 @@ toast_rules(struct rulehead *head)
 	}
 }
 
-static void ipacl_init(struct mac_policy_conf *conf)
+static void
+ipacl_init(struct mac_policy_conf *conf)
 {
 	printf("\t INIT: macip_acl loaded\n");
 	mtx_init(&rule_mtx, "rule_mtx", NULL, MTX_DEF);
 	TAILQ_INIT(&rule_head);
 }
 
-static void ipacl_destroy(struct mac_policy_conf *conf)
+static void
+ipacl_destroy(struct mac_policy_conf *conf)
 {
 	printf("\t DESTROY: mac_ipacl unloaded\n");
 	mtx_destroy(&rule_mtx);
 	toast_rules(&rule_head);
 }
 
-static int ipacl_ip4_check_jail(struct ucred *cred,
+/*
+ * to add rule parser, exact format is yet to decide
+ * It can be jid:allow:ifp:ipaddr:mask.
+ * to see if mask can be given in both way(like 255.0.0.0
+ * or /8 as user wish
+ */
+
+/*
+ * Note: parsing routines are destructive on the passed string.
+ */
+
+static int
+parse_rule_element(char *element, struct ip_rule **rule)
+{
+	char *jid, *allow, *ifp, *ipaddr, *mask, *p;
+	struct ip_rule *new;
+	int error;
+
+	error = 0;
+	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
+
+	jid = strsep(&element, ":"); /*specifying the jail_name instead
+				       of jid will be done later*/
+	if (jid == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	new->jid = strtol(jid, &p, 10);
+	if (*p != '\0') {
+		error = EINVAL;
+		goto out;
+	}
+	allow = strsep(&element, ":");
+	if (allow == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	new->allow=strtol(allow, &p, 10);
+	ifp = strsep(&element, ":");
+	if (*p != '\0') {
+		error = EINVAL;
+		goto out;
+	}
+	if (ifp == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	/*
+	 * TO_SEE-HOW TO FIND THE INTERFACE FROM ITS NAME
+	 */
+	ipaddr = strsep(&element, ":");
+	if (ipaddr == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	/*convert string to ip_addr.*/
+	mask = element;
+	if (mask == NULL) {
+		error = EINVAL;
+		goto out;
+	}
+	/*mask can be given as ip_addr or number*/
+
+
+
+
+
+
+out:
+	if (error != 0) {
+		free(new, M_IPACL);
+		*rule = NULL;
+	} else
+		*rule = new;
+	return (error);
+}
+
+static int
+parse_rules(char *string, struct rulehead *head)
+{
+	struct ip_rule *new;
+	char *element;
+	int error;
+
+	error = 0;
+	while ((element = strsep(&string, ",")) != NULL) {
+		if (strlen(element) == 0)
+			continue;
+		error = parse_rule_element(element, &new);
+		if (error)
+			goto out;
+		TAILQ_INSERT_TAIL(head, new, r_entries);
+	}
+out:
+	if (error != 0)
+		toast_rules(head);
+	return (error);
+}
+
+static int
+ipacl_ip4_check_jail(struct ucred *cred,
     const struct in_addr *ia, struct ifnet *ifp)
 {
 	/*function only when ipacl is enabled and it is a jail*/
-	if(!ipacl_enabled || !jailed(cred))
+	if (!ipacl_enabled || !jailed(cred))
 		return 0;
 	
-	if(ipacl_ipv4)
+	if (ipacl_ipv4)
 		return 0;
 
 	return (EPERM);
 }
 
-static int ipacl_ip6_check_jail(struct ucred *cred,
+static int
+ipacl_ip6_check_jail(struct ucred *cred,
     const struct in6_addr *ia6, struct ifnet *ifp)
 {
 	/*function only when ipacl is enabled and it is a jail*/
-	if(!ipacl_enabled || !jailed(cred))
+	if (!ipacl_enabled || !jailed(cred))
 		return 0;
 	
-	if(ipacl_ipv6)
+	if (ipacl_ipv6)
 		return 0;
 
 	return (EPERM);
