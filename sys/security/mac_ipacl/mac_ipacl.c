@@ -65,14 +65,13 @@ struct ipacl_addr {
 struct ip_rule {
 	int			jid; /* or name it int pr_id?*/
 	bool			allow; /*allow or deny */
-	struct			ifnet *ifp; /*network interface*/
-	//sa_family_t
-	struct			ipacl_addr addr;
-	struct			ipacl_addr mask;
+	struct	ifnet		*ifp; /*network interface*/
+	int			af; /*address family, can be ipv4, ipv6 or hw_addr(later)*/	
+	struct	ipacl_addr	addr;
+	struct	ipacl_addr	mask;
 	/* currently I am thinking if user gives some special value
 	 * to addr, then rule applies for whole subnet/prefix
 	 */
-
 	TAILQ_ENTRY(ip_rule)	r_entries; /* queue */ 
 				  
 };
@@ -112,7 +111,7 @@ ipacl_destroy(struct mac_policy_conf *conf)
 
 /*
  * to add rule parser, exact format is yet to decide
- * It can be jid@allow@ifp@AF@ip_addr@mask
+ * It can be jid@allow@ifp@af@ip_addr@mask
  * to see if mask can be given in both way(like 255.0.0.0
  * or /8 as user wish
  */
@@ -124,10 +123,9 @@ ipacl_destroy(struct mac_policy_conf *conf)
 static int
 parse_rule_element(char *element, struct ip_rule **rule)
 {
-	char *jid, *allow, *ifp, *af, *ip_addr, *mask, *p;
+	char *jid, *allow, *ifp, *fam, *ip_addr, *mask, *p;
 	struct ip_rule *new;
 	int error;
-	int AF;
 
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
@@ -157,15 +155,15 @@ parse_rule_element(char *element, struct ip_rule **rule)
 	/*
 	 * TO_SEE-HOW TO FIND THE INTERFACE FROM ITS NAME
 	 */
-	af = strsep(&element, "@");
-	if (af == NULL) {
+	fam = strsep(&element, "@");
+	if (fam == NULL) {
 		error = EINVAL;
 		goto out;
 	}
 
-	AF = (strcmp(af, "AF_INET") == 0) ? AF_INET : 
-             (strcmp(af, "AF_INET6") == 0) ? AF_INET6 : -1;
-	if (AF == -1) {
+	new->af = (strcmp(fam, "AF_INET") == 0) ? AF_INET : 
+             (strcmp(fam, "AF_INET6") == 0) ? AF_INET6 : -1;
+	if (new->af == -1) {
 		error = EINVAL;
 		goto out;
 	}	
@@ -175,7 +173,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	if (inet_pton(AF, ip_addr, new->addr.addr32) != 1) {
+	if (inet_pton(new->af, ip_addr, new->addr.addr32) != 1) {
 		error = EINVAL;
 		goto out;
 	}
@@ -186,7 +184,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	if (inet_pton(AF, mask, new->mask.addr32) != 1) {
+	if (inet_pton(new->af, mask, new->mask.addr32) != 1) {
 		error = EINVAL;
 		goto out;
 	}
@@ -200,8 +198,7 @@ out:
 	return (error);
 }
 
-/* Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@192.168.0.0 */  
-/* Eg:sysctl security.mac.ipacl.rules=0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@FE80::0202:B3FF:FE1E:8320 */
+/* Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@192.168.0.0,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@FE80::0202:B3FF:FE1E:8320 */
 static int
 parse_rules(char *string, struct rulehead *head)
 {
@@ -279,23 +276,28 @@ rule_printf(){
 	struct ip_rule *rule;
 	char buf[32];
 	char buf6[128];
+
 	for (rule = TAILQ_FIRST(&rule_head);
 	    rule != NULL;
 	    rule = TAILQ_NEXT(rule, r_entries)) {
+
 		/*rough printing of rules*/
-		printf("jid=%d allow=%d",rule->jid, rule->allow);
-		if (inet_ntop(AF_INET, &(rule->addr.v4), buf, sizeof(buf)) != NULL)
-			printf("inet addr: %s\n", buf);
-		if (inet_ntop(AF_INET, &(rule->mask.v4), buf, sizeof(buf)) != NULL)
-			printf("mask addr: %s\n", buf);
+		printf("jid=%d allow=%d family=%d\n",rule->jid, rule->allow, rule->af);
+		
+		if (rule->af == AF_INET) {
+			if (inet_ntop(AF_INET, &(rule->addr.v4), buf, sizeof(buf)) != NULL)
+				printf("inet addr: %s\n", buf);
+			if (inet_ntop(AF_INET, &(rule->mask.v4), buf, sizeof(buf)) != NULL)
+				printf("mask addr: %s\n", buf);
+		}
 
-		if (inet_ntop(AF_INET6, &(rule->addr.v6), buf6, sizeof(buf6)) != NULL)
-			printf("inet6 addr: %s\n", buf6);
-		if (inet_ntop(AF_INET6, &(rule->mask.v6), buf6, sizeof(buf6)) != NULL)
-			printf("mask addr: %s\n", buf6);
-
+		else if (rule->af == AF_INET6) {
+			if (inet_ntop(AF_INET6, &(rule->addr.v6), buf6, sizeof(buf6)) != NULL)
+				printf("inet6 addr: %s\n", buf6);
+			if (inet_ntop(AF_INET6, &(rule->mask.v6), buf6, sizeof(buf6)) != NULL)
+				printf("mask addr: %s\n", buf6);
+		}
 	}
-
 	return 0; 
 }
 
@@ -303,21 +305,41 @@ static int
 rules_check(struct ucred *cred,
    struct ipacl_addr *ip_addr, struct ifnet *ifp)
 {
-	//struct rule *rule;
-	//int error;
+	struct ip_rule *rule;
+	int error;
 	char buf[INET_ADDRSTRLEN];
 	char buf6[INET6_ADDRSTRLEN];	
-	if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
-		printf("inet addr 2: %s\n", buf);
 
-	if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
-		printf("inet6 addr 2: %s\n", buf6);
+	error = EPERM;
+	
+	mtx_lock(&rule_mtx);
+	
+	for (rule = TAILQ_FIRST(&rule_head);
+	    rule != NULL;
+	    rule = TAILQ_NEXT(rule, r_entries)) {
+		
+		if (rule->af == AF_INET) {
+			if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
+				printf("to check ipv4: %s\n", buf);
+			/*
+			 * implement IPv4 check here
+			 */
+		}
 
+		else if (rule->af == AF_INET6) {
+			if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
+				printf("to  check ipv6: %s\n", buf6);
+			/*
+			 * implement IPv6 check here
+			 */
+		}
+	}
+	
+	mtx_unlock(&rule_mtx);
 
-/*to distinguish ipv4 rules and ipv6 rules somehow - use a family_flag in struct itself*/
+	return 0 ;
 
-	return 0;
-
+	return (error);
 }
 
 static int
@@ -329,13 +351,9 @@ ipacl_ip4_check_jail(struct ucred *cred,
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
-	//rule_printf();
-	//char buf[INET_ADDRSTRLEN];
-	//if (inet_ntop(AF_INET, &(ip4_addr.v4), buf, INET_ADDRSTRLEN) != NULL)
-	//	printf("inet addr 1: %s\n", buf);
+	rule_printf();
 
 	if (ipacl_ipv4)
-		return 0;
 		return rules_check(cred, &ip4_addr, ifp);
 
 	return (EPERM);
@@ -351,13 +369,10 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
-	//char buf6[INET6_ADDRSTRLEN];
-	//if (inet_ntop(AF_INET6, &(ip6_addr.v6), buf6,INET6_ADDRSTRLEN) != NULL)
-	//	printf("inet6 addr 1: %s\n", buf6);
 
 	if (ipacl_ipv6)
-		return 0;
 		return rules_check(cred, &ip6_addr, ifp);
+	
 	return (EPERM);
 }
 
