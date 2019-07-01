@@ -4,6 +4,9 @@
 ------------------------
 [EDIT] point 6 added in goals 
 
+[EDIT] NOTE: I am thinking to change the module name to mac_ifacl and compatibilty
+of controlling hw_addr
+
 
 Design Goals -
 ------------

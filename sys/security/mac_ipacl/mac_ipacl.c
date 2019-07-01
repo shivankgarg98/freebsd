@@ -112,7 +112,7 @@ ipacl_destroy(struct mac_policy_conf *conf)
 
 /*
  * to add rule parser, exact format is yet to decide
- * It can be jid@allow@ifp@AF@ipaddr@mask
+ * It can be jid@allow@ifp@AF@ip_addr@mask
  * to see if mask can be given in both way(like 255.0.0.0
  * or /8 as user wish
  */
@@ -124,7 +124,7 @@ ipacl_destroy(struct mac_policy_conf *conf)
 static int
 parse_rule_element(char *element, struct ip_rule **rule)
 {
-	char *jid, *allow, *ifp, *af, *ipaddr, *mask, *p;
+	char *jid, *allow, *ifp, *af, *ip_addr, *mask, *p;
 	struct ip_rule *new;
 	int error;
 	int AF;
@@ -170,12 +170,12 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		goto out;
 	}	
 
-	ipaddr = strsep(&element, "@");
-	if (ipaddr == NULL) {
+	ip_addr = strsep(&element, "@");
+	if (ip_addr == NULL) {
 		error = EINVAL;
 		goto out;
 	}
-	if (inet_pton(AF, ipaddr, new->addr.addr32) != 1) {
+	if (inet_pton(AF, ip_addr, new->addr.addr32) != 1) {
 		error = EINVAL;
 		goto out;
 	}
@@ -287,12 +287,12 @@ rule_printf(){
 		if (inet_ntop(AF_INET, &(rule->addr.v4), buf, sizeof(buf)) != NULL)
 			printf("inet addr: %s\n", buf);
 		if (inet_ntop(AF_INET, &(rule->mask.v4), buf, sizeof(buf)) != NULL)
-			printf("inet addr: %s\n", buf);
+			printf("mask addr: %s\n", buf);
 
 		if (inet_ntop(AF_INET6, &(rule->addr.v6), buf6, sizeof(buf6)) != NULL)
-			printf("inet addr: %s\n", buf6);
+			printf("inet6 addr: %s\n", buf6);
 		if (inet_ntop(AF_INET6, &(rule->mask.v6), buf6, sizeof(buf6)) != NULL)
-			printf("inet addr: %s\n", buf6);
+			printf("mask addr: %s\n", buf6);
 
 	}
 
@@ -301,12 +301,20 @@ rule_printf(){
 
 static int
 rules_check(struct ucred *cred,
-    const struct in_addr *ia, struct ifnet *ifp)
+   struct ipacl_addr *ip_addr, struct ifnet *ifp)
 {
 	//struct rule *rule;
 	//int error;
+	char buf[INET_ADDRSTRLEN];
+	char buf6[INET6_ADDRSTRLEN];	
+	if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
+		printf("inet addr 2: %s\n", buf);
 
-/*to distinguish ipv4 rules and ipv6 rules somehow */
+	if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
+		printf("inet6 addr 2: %s\n", buf6);
+
+
+/*to distinguish ipv4 rules and ipv6 rules somehow - use a family_flag in struct itself*/
 
 	return 0;
 
@@ -316,14 +324,19 @@ static int
 ipacl_ip4_check_jail(struct ucred *cred,
     const struct in_addr *ia, struct ifnet *ifp)
 {
+	struct ipacl_addr ip4_addr;
+	ip4_addr.v4 = *ia;
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
-	
 	//rule_printf();
-	
+	//char buf[INET_ADDRSTRLEN];
+	//if (inet_ntop(AF_INET, &(ip4_addr.v4), buf, INET_ADDRSTRLEN) != NULL)
+	//	printf("inet addr 1: %s\n", buf);
+
 	if (ipacl_ipv4)
-		return rules_check(cred, ia, ifp);
+		return 0;
+		return rules_check(cred, &ip4_addr, ifp);
 
 	return (EPERM);
 }
@@ -332,13 +345,19 @@ static int
 ipacl_ip6_check_jail(struct ucred *cred,
     const struct in6_addr *ia6, struct ifnet *ifp)
 {
+	struct ipacl_addr ip6_addr;
+	ip6_addr.v6 = *ia6;
+
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
-	
+	//char buf6[INET6_ADDRSTRLEN];
+	//if (inet_ntop(AF_INET6, &(ip6_addr.v6), buf6,INET6_ADDRSTRLEN) != NULL)
+	//	printf("inet6 addr 1: %s\n", buf6);
+
 	if (ipacl_ipv6)
-		//return rules_check(cred, ia6, ifp);
 		return 0;
+		return rules_check(cred, &ip6_addr, ifp);
 	return (EPERM);
 }
 
