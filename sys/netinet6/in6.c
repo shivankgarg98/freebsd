@@ -563,14 +563,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		*only block jails from setting their IPv6 addr
 		*/
 #ifdef MAC
-		char str[INET6_ADDRSTRLEN];
-		inet_ntop(AF_INET6, &sa6->sin6_addr, str, INET6_ADDRSTRLEN);
-
-		printf("inet6 addr1 %s", str);
-		inet_ntop(AF_INET6, &ifra->ifra_addr.sin6_addr, str, INET6_ADDRSTRLEN);
-
-
-		printf("inet6 addr2 %s", str);
 		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred, &sa6->sin6_addr, ifp);
 		if (error) {
 			goto out;

@@ -16,6 +16,7 @@
 #include <sys/jail.h>
 
 #include <netinet/in.h>
+#include <netinet6/scope6_var.h>
 
 #include <security/mac/mac_policy.h>
 
@@ -318,15 +319,30 @@ rules_check(struct ucred *cred,
 	    rule != NULL;
 	    rule = TAILQ_NEXT(rule, r_entries)) {
 		
+		/*skip if current rule is for different jail*/
+		if(cred->cr_prison->pr_id != rule->jid)
+			continue;
+		
 		if (rule->af == AF_INET) {
 			if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
 				printf("to check ipv4: %s\n", buf);
 			/*
 			 * implement IPv4 check here
+			 * 1. check jail
+			 * 2. check for that ipv4 in the list
+			 *    2.0 if it's in the list(allow/disallow) else continue.
+			 *    2.1 check the ipv4
+			 *    2.2 *---* to allow a subnet, check if ipv4 addr lies in that subnet
+			 *    2.3 *---* some wild-card address
+			 * 3. return error accordingly
 			 */
+
 		}
 
 		else if (rule->af == AF_INET6) {
+			printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, &(ip_addr->v6)) );
+
+
 			if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
 				printf("to  check ipv6: %s\n", buf6);
 			/*
@@ -364,7 +380,12 @@ ipacl_ip6_check_jail(struct ucred *cred,
     const struct in6_addr *ia6, struct ifnet *ifp)
 {
 	struct ipacl_addr ip6_addr;
-	ip6_addr.v6 = *ia6;
+	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
+	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
+	
+	char buf6[INET6_ADDRSTRLEN];	
+	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
+	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));
 
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
