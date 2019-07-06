@@ -32,11 +32,6 @@ static int ipacl_enabled = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ipacl_enabled, 0, "Enforce mac_ipacl policy");
 
-/*
- * enforce this policy only on jail for now
- * sysctl ipv4 and ipv6 to allow/disallow jail
- */
-
 static int ipacl_ipv4 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv4, CTLFLAG_RWTUN,
     &ipacl_ipv4, 0, "allow IPv4 address for interfaces");
@@ -273,7 +268,7 @@ SYSCTL_PROC(_security_mac_ipacl, OID_AUTO, rules,
        CTLTYPE_STRING|CTLFLAG_RW, 0, 0, sysctl_rules, "A", "IP ACL Rules");
 
 /*
- * printing rules for debug
+ * rough printing rules for debug
  */
 static int
 rule_printf(){
@@ -325,43 +320,30 @@ rules_check(struct ucred *cred,
 		/*skip if current rule is for different jail*/
 		if(cred->cr_prison->pr_id != rule->jid)
 			continue;
-		
-		if (rule->af == AF_INET) {
-			if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
-				printf("to check ipv4: %s\n", buf);
-			
-			if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
-				continue;
-			if (rule->if_name[0] != '\0' && strcmp(rule->if_name, ifp->if_xname))
-				continue;
-			if (rule->allow)
-				error = 0;
-			/*
-			 * implement IPv4 check here
-			 * 1. check jail - done
-			 * 2. check for that ipv4 in the list -done
-			 *    2.0 if it's in the list(allow/disallow) else continue -done
-			 *    2.1 check the ipv4 - done
-			 *    2.2 check interface - done
-			 *    2.3 *---* to allow a subnet, check if ipv4 addr lies in that subnet
-			 *    2.4 *---* some wild-card address
-			 * 3. return error accordingly
-			 */
+		if (strcmp(rule->if_name, "\0") && strcmp(rule->if_name, ifp->if_xname))
+			continue;
 
+		switch (rule->af) {
+			case AF_INET:
+				if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
+					printf("to check ipv4: %s\n", buf);
+				if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
+					continue;
+				break;
+			case AF_INET6:
+				if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
+					printf("to  check ipv6: %s\n", buf6);
+				if (bcmp(&rule->addr, ip_addr, sizeof(*ip_addr))) /*as called in pf.c:685*/
+					continue;
+				break;
+			default:
+				error = EINVAL;
 		}
-
-		else if (rule->af == AF_INET6) {
-			printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, &(ip_addr->v6)) );
-
-
-			if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
-				printf("to  check ipv6: %s\n", buf6);
-			/*
-			 * implement IPv6 check here
-			 */
-		}
+		if (rule->allow)
+			error = 0;
+		/*subnet check remaining*/
 	}
-	
+
 	mtx_unlock(&rule_mtx);
 
 	return (error);
@@ -396,6 +378,7 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
 	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));
 
+	rule_printf();
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
@@ -408,17 +391,11 @@ ipacl_ip6_check_jail(struct ucred *cred,
 
 static struct mac_policy_ops ipacl_ops =
 {
-
 	.mpo_init = ipacl_init,
 	.mpo_destroy = ipacl_destroy,
 	.mpo_ip4_check_jail = ipacl_ip4_check_jail,
 	.mpo_ip6_check_jail = ipacl_ip6_check_jail,
-	
-	/*
-	 *
-	 */
 };
 
 MAC_POLICY_SET(&ipacl_ops, mac_ipacl, "TrustedBSD MAC/ipacl",
     MPC_LOADTIME_FLAG_UNLOADOK, NULL);
-
