@@ -15,6 +15,9 @@
 #include <sys/ucred.h>
 #include <sys/jail.h>
 
+#include <net/if.h>
+#include <net/if_var.h>
+
 #include <netinet/in.h>
 #include <netinet6/scope6_var.h>
 
@@ -66,7 +69,7 @@ struct ipacl_addr {
 struct ip_rule {
 	int			jid; /* or name it int pr_id?*/
 	bool			allow; /*allow or deny */
-	struct	ifnet		*ifp; /*network interface*/
+	char			if_name[IFNAMSIZ]; /*network interface name*/
 	int			af; /*address family, can be ipv4, ipv6 or hw_addr(later)*/	
 	struct	ipacl_addr	addr;
 	struct	ipacl_addr	mask;
@@ -112,7 +115,7 @@ ipacl_destroy(struct mac_policy_conf *conf)
 
 /*
  * to add rule parser, exact format is yet to decide
- * It can be jid@allow@ifp@af@ip_addr@mask
+ * It can be jid@allow@if_name@af@ip_addr@mask
  * to see if mask can be given in both way(like 255.0.0.0
  * or /8 as user wish
  */
@@ -124,7 +127,7 @@ ipacl_destroy(struct mac_policy_conf *conf)
 static int
 parse_rule_element(char *element, struct ip_rule **rule)
 {
-	char *jid, *allow, *ifp, *fam, *ip_addr, *mask, *p;
+	char *jid, *allow, *if_name, *fam, *ip_addr, *mask, *p;
 	struct ip_rule *new;
 	int error;
 
@@ -148,14 +151,14 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		goto out;
 	}
 	new->allow=strtol(allow, &p, 10);
-	ifp = strsep(&element, "@");
-	if (ifp == NULL) {
+	if_name = strsep(&element, "@");/*add len restriction=IF_NAMESIZE for name*/
+	if (sizeof(if_name) > IF_NAMESIZE) {
 		error = EINVAL;
 		goto out;
 	}
-	/*
-	 * TO_SEE-HOW TO FIND THE INTERFACE FROM ITS NAME
-	 */
+	/* empty = wildcard to all interfaces*/
+	bzero(new->if_name, IF_NAMESIZE);
+	bcopy(if_name, new->if_name, strlen(if_name));
 	fam = strsep(&element, "@");
 	if (fam == NULL) {
 		error = EINVAL;
@@ -326,14 +329,22 @@ rules_check(struct ucred *cred,
 		if (rule->af == AF_INET) {
 			if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
 				printf("to check ipv4: %s\n", buf);
+			
+			if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
+				continue;
+			if (rule->if_name[0] != '\0' && strcmp(rule->if_name, ifp->if_xname))
+				continue;
+			if (rule->allow)
+				error = 0;
 			/*
 			 * implement IPv4 check here
-			 * 1. check jail
-			 * 2. check for that ipv4 in the list
-			 *    2.0 if it's in the list(allow/disallow) else continue.
-			 *    2.1 check the ipv4
-			 *    2.2 *---* to allow a subnet, check if ipv4 addr lies in that subnet
-			 *    2.3 *---* some wild-card address
+			 * 1. check jail - done
+			 * 2. check for that ipv4 in the list -done
+			 *    2.0 if it's in the list(allow/disallow) else continue -done
+			 *    2.1 check the ipv4 - done
+			 *    2.2 check interface - done
+			 *    2.3 *---* to allow a subnet, check if ipv4 addr lies in that subnet
+			 *    2.4 *---* some wild-card address
 			 * 3. return error accordingly
 			 */
 
@@ -352,8 +363,6 @@ rules_check(struct ucred *cred,
 	}
 	
 	mtx_unlock(&rule_mtx);
-
-	return 0 ;
 
 	return (error);
 }
