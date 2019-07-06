@@ -52,7 +52,7 @@ struct ipacl_addr {
 		u_int16_t	addr16[8];
 		u_int32_t	addr32[4];
 	} ipa; /* 128 bit address*/
-/*inspired from pf_var.h*/	
+/*inspired from struct pf_addr*/	
 #define v4	ipa.ipv4
 #define v6	ipa.ipv6
 #define addr8	ipa.addr8
@@ -68,9 +68,6 @@ struct ip_rule {
 	int			af; /*address family, can be ipv4, ipv6 or hw_addr(later)*/	
 	struct	ipacl_addr	addr;
 	struct	ipacl_addr	mask;
-	/* currently I am thinking if user gives some special value
-	 * to addr, then rule applies for whole subnet/prefix
-	 */
 	TAILQ_ENTRY(ip_rule)	r_entries; /* queue */ 
 				  
 };
@@ -109,13 +106,6 @@ ipacl_destroy(struct mac_policy_conf *conf)
 }
 
 /*
- * to add rule parser, exact format is yet to decide
- * It can be jid@allow@if_name@af@ip_addr@mask
- * to see if mask can be given in both way(like 255.0.0.0
- * or /8 as user wish
- */
-
-/*
  * Note: parsing routines are destructive on the passed string.
  */
 
@@ -129,8 +119,8 @@ parse_rule_element(char *element, struct ip_rule **rule)
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
 
-	jid = strsep(&element, "@"); /*specifying the jail_name instead
-				       of jid will be done later*/
+	jid = strsep(&element, "@"); /*specifying the jail_name/jid instead
+				       of only jid will be done later*/
 	if (jid == NULL) {
 		error = EINVAL;
 		goto out;
@@ -176,8 +166,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-
-	/*convert string to ip_addr. also to distingish ip4 and ip6*/
+	
 	mask = element;
 	if (mask == NULL) {
 		error = EINVAL;
@@ -197,7 +186,10 @@ out:
 	return (error);
 }
 
-/* Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@192.168.0.0,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@FE80::0202:B3FF:FE1E:8320 */
+/* parsing rule- jid@allow@interface_name@addr_family@ip_addr@subnet_mask
+ * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@192.168.0.0,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@FE80::0202:B3FF:FE1E:8320
+ */
+
 static int
 parse_rules(char *string, struct rulehead *head)
 {
@@ -268,7 +260,7 @@ SYSCTL_PROC(_security_mac_ipacl, OID_AUTO, rules,
        CTLTYPE_STRING|CTLFLAG_RW, 0, 0, sysctl_rules, "A", "IP ACL Rules");
 
 /*
- * rough printing rules for debug
+ * rough printing rules for debugging purposes
  */
 static int
 rule_printf(){
@@ -279,17 +271,13 @@ rule_printf(){
 	for (rule = TAILQ_FIRST(&rule_head);
 	    rule != NULL;
 	    rule = TAILQ_NEXT(rule, r_entries)) {
-
-		/*rough printing of rules*/
 		printf("jid=%d allow=%d family=%d\n",rule->jid, rule->allow, rule->af);
-		
 		if (rule->af == AF_INET) {
 			if (inet_ntop(AF_INET, &(rule->addr.v4), buf, sizeof(buf)) != NULL)
 				printf("inet addr: %s\n", buf);
 			if (inet_ntop(AF_INET, &(rule->mask.v4), buf, sizeof(buf)) != NULL)
 				printf("mask addr: %s\n", buf);
 		}
-
 		else if (rule->af == AF_INET6) {
 			if (inet_ntop(AF_INET6, &(rule->addr.v6), buf6, sizeof(buf6)) != NULL)
 				printf("inet6 addr: %s\n", buf6);
@@ -341,7 +329,7 @@ rules_check(struct ucred *cred,
 		}
 		if (rule->allow)
 			error = 0;
-		/*subnet check remaining*/
+		/*subnet check is remaining*/
 	}
 
 	mtx_unlock(&rule_mtx);
