@@ -31,14 +31,18 @@ static SYSCTL_NODE(_security_mac, OID_AUTO, ipacl, CTLFLAG_RW, 0,
 static int ipacl_enabled = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
     &ipacl_enabled, 0, "Enforce mac_ipacl policy");
+/*
+ * sysctl enabled has became obsolete, though used in module
+ * it can be removed with minor changes
+ */
 
 static int ipacl_ipv4 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv4, CTLFLAG_RWTUN,
-    &ipacl_ipv4, 0, "allow IPv4 address for interfaces");
+    &ipacl_ipv4, 0, "Enforce mac_ipacl for IPv4 addresses");
 
 static int ipacl_ipv6 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv6, CTLFLAG_RWTUN,
-    &ipacl_ipv6, 0, "allow IPv6 address for interfaces");
+    &ipacl_ipv6, 0, "Enforce mac_ipacl for IPv6 addresses");
 
 static MALLOC_DEFINE(M_IPACL, "ipacl_rule", "Rules for mac_ipacl");
 
@@ -114,7 +118,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 {
 	char *jid, *allow, *if_name, *fam, *ip_addr, *mask, *p;
 	struct ip_rule *new;
-	int error;
+	int error, prefix;
 
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
@@ -124,7 +128,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 	if (jid == NULL) {
 		error = EINVAL;
 		goto out;
-	}
+	}/*jail wildcard?*/
 	new->jid = strtol(jid, &p, 10);
 	if (*p != '\0') {
 		error = EINVAL;
@@ -136,6 +140,10 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		goto out;
 	}
 	new->allow=strtol(allow, &p, 10);
+	if (*p != '\0') {
+		error = EINVAL;
+		goto out;
+	}
 	if_name = strsep(&element, "@");/*add len restriction=IF_NAMESIZE for name*/
 	if (sizeof(if_name) > IF_NAMESIZE) {
 		error = EINVAL;
@@ -166,15 +174,33 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	
 	mask = element;
 	if (mask == NULL) {
 		error = EINVAL;
 		goto out;
 	}
-	if (inet_pton(new->af, mask, new->mask.addr32) != 1) {
+	prefix = strtol(mask, &p, 10);
+	if (*p != '\0') {
 		error = EINVAL;
 		goto out;
+	}
+	if (new->af == AF_INET) {
+		if (prefix < 0 || prefix > 32) {
+			error = EINVAL;
+			goto out;
+		}
+		if (prefix == 0)
+			new->mask.addr32[0] = htonl(0);
+
+		else
+			new->mask.addr32[0] = htonl(~((1 << (32 - prefix)) - 1));
+	}
+	else {
+		if (prefix < 0 || prefix > 128) {
+			error = EINVAL;
+			goto out;
+		}
+		/*TODO: convert ipv6 prefix to subnet mask*/
 	}
 
 out:
@@ -187,7 +213,7 @@ out:
 }
 
 /* parsing rule- jid@allow@interface_name@addr_family@ip_addr@subnet_mask
- * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@192.168.0.0,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@FE80::0202:B3FF:FE1E:8320
+ * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@24,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@64
  */
 
 static int
@@ -348,10 +374,13 @@ ipacl_ip4_check_jail(struct ucred *cred,
 		return 0;
 	rule_printf();
 
+	/*if policy is enforced for ip4 address then check with rules
+	 * else return 0
+	 */
 	if (ipacl_ipv4)
 		return rules_check(cred, &ip4_addr, ifp);
 
-	return (EPERM);
+	return 0;
 }
 
 static int
@@ -370,11 +399,15 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	/*function only when ipacl is enabled and it is a jail*/
 	if (!ipacl_enabled || !jailed(cred))
 		return 0;
+	
+	/*if policy is enforced for ip6 address then check with rules
+	 * else return 0
+	 */
 
 	if (ipacl_ipv6)
 		return rules_check(cred, &ip6_addr, ifp);
 	
-	return (EPERM);
+	return 0;
 }
 
 static struct mac_policy_ops ipacl_ops =

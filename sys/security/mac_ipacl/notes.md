@@ -4,7 +4,10 @@ TODO-
 
 --------------------------------------------------------------------------
 Rough Notes-
-1. 
+1. if(subnet == subnet & IP) then IP is present in that particular subnet.
+   Now, I'm thinking about changing the bool allow in struct ipacl_rule to
+   int allow. and host can give the policy as allow=0 reject, allow=1 for IP
+   address and allow=2 for whole subnet(allow all ip in that subnet)
 
 
 
