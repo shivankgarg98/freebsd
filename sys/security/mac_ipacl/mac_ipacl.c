@@ -381,9 +381,11 @@ rules_check(struct ucred *cred,
 			default:
 				error = EINVAL;
 		}
-
+		printf("control reaches here");
 		if (rule->allow)
 			error = 0;
+		else
+			error = EPERM;
 	}
 
 	mtx_unlock(&rule_mtx);
