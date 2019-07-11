@@ -1,13 +1,18 @@
 #!/bin/sh
+# $FresBSD$
+
+sysctl security.mac.ipacl >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+        echo "1..0 # SKIP MAC_IPACL is unavailable."
+        exit 0
+fi
 
 if [ "$(id -u)" -ne 0 ]; then
-	echo "SKIP: testcases must be run as root"
+	echo "1..0 # SKIP testcases must be run as root"
 	exit 0
 fi
 
 ntest=1
-
-echo "ipacl_script.sh"
 
 test_ip() {
 	local proto interface address prefix jid
