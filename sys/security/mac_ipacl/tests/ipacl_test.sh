@@ -7,9 +7,10 @@ dir=`dirname $0`
 #use ifconfig epair create to generate epair
 #epair0a = host #epair0b = jls 1
 
+echo "1..30"
 #sysctl allow
-sysctl security.mac.ipacl.ipv4=1
-sysctl security.mac.ipacl.ipv6=1
+sysctl security.mac.ipacl.ipv4=1 >/dev/null
+sysctl security.mac.ipacl.ipv6=1 >/dev/null
 
 echo "test for ipv4 - ipv4 allow"
 exec_test ok ipv4 epair0a '192.168.12.12' 16 0 #1 test for host
@@ -34,8 +35,8 @@ exec_test fl ipv4 epair0a '192.168.41.1' 24 0 #15 intentionally FAIL
 
 
 #sysctl disallow
-sysctl security.mac.ipacl.ipv4=0
-sysctl security.mac.ipacl.ipv6=0
+sysctl security.mac.ipacl.ipv4=0 >/dev/null
+sysctl security.mac.ipacl.ipv6=0 >/dev/null
 echo "test for ipv4 - ipv4 disallow"
 exec_test ok ipv4 epair0a '192.168.12.12' 16 0 #16 test for host
 exec_test fl ipv4 epair0b '192.168.12.13' 16 1 #17 test for jid=1

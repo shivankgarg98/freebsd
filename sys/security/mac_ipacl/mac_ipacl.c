@@ -320,7 +320,7 @@ rules_check(struct ucred *cred,
    struct ipacl_addr *ip_addr, struct ifnet *ifp)
 {
 	struct ip_rule *rule;
-	int error, i;
+	int error, i, j;
 	struct ipacl_addr subnet;
 	char buf[INET_ADDRSTRLEN];
 	char buf6[INET6_ADDRSTRLEN];	
@@ -362,15 +362,18 @@ rules_check(struct ucred *cred,
 					printf("to  check ipv6: %s\n", buf6);
 				if (rule->subnet_apply) {
 					for ( i=0 ; i<4 ; i++ )
-						subnet.addr32[i] = (rule->addr.addr32[i] & rule->mask.addr32[i]);
+						subnet.addr32[i] = (ip_addr->addr32[i] & rule->mask.addr32[i]);
 					if (inet_ntop(AF_INET6, subnet.addr32, buf6, sizeof(buf6)) != NULL)
 						printf("SUBNETv6 of RULE: %s\n", buf6);
-					for ( i=0 ; i<4 ; i++ ) {
-						if (subnet.addr32[i] != (ip_addr->addr32[i] & rule->mask.addr32[i]))
+					j=0;
+					for ( i=0 ; i<4 ; i++ ) 
+						if (subnet.addr32[i] != (ip_addr->addr32[i] & rule->mask.addr32[i])) {
+							j=1;
 							break;
-					}
-					if (i != 4)
+						}
+					if(j)
 						continue;
+					
 				}
 				else {
 					if (bcmp(&rule->addr, ip_addr, sizeof(*ip_addr))) /*as called in pf.c:685*/
@@ -421,6 +424,9 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
 	
 	rule_printf();
+	char buf6[INET6_ADDRSTRLEN];
+	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
+	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));
 	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;
