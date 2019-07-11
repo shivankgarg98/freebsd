@@ -118,7 +118,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 {
 	char *jid, *allow, *if_name, *fam, *ip_addr, *mask, *p;
 	struct ip_rule *new;
-	int error, prefix;
+	int error, prefix, i, j;
 
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
@@ -200,7 +200,9 @@ parse_rule_element(char *element, struct ip_rule **rule)
 			error = EINVAL;
 			goto out;
 		}
-		/*TODO: convert ipv6 prefix to subnet mask*/
+		for (i = prefix, j = 0; i > 0; i -= 8, ++j)
+  			new->mask.addr8[j] = i >= 8 ? 0xff
+				: (unsigned long)((0xffU << (8 - i)) & 0xffU);
 	}
 
 out:
