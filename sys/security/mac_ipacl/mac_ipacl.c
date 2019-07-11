@@ -28,19 +28,11 @@ SYSCTL_DECL(_security_mac);
 static SYSCTL_NODE(_security_mac, OID_AUTO, ipacl, CTLFLAG_RW, 0,
     "TrustedBSD mac_ipacl policy controls");
 
-static int ipacl_enabled = 1;
-SYSCTL_INT(_security_mac_ipacl, OID_AUTO, enabled, CTLFLAG_RWTUN,
-    &ipacl_enabled, 0, "Enforce mac_ipacl policy");
-/*
- * sysctl enabled has became obsolete, though used in module
- * it can be removed with minor changes
- */
-
-static int ipacl_ipv4 = 1;
+static int ipacl_ipv4 = 0;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv4, CTLFLAG_RWTUN,
     &ipacl_ipv4, 0, "Enforce mac_ipacl for IPv4 addresses");
 
-static int ipacl_ipv6 = 1;
+static int ipacl_ipv6 = 0;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv6, CTLFLAG_RWTUN,
     &ipacl_ipv6, 0, "Enforce mac_ipacl for IPv6 addresses");
 
@@ -68,6 +60,7 @@ struct ipacl_addr {
 struct ip_rule {
 	int			jid; /* or name it int pr_id?*/
 	bool			allow; /*allow or deny */
+	bool			subnet_apply; /*make it applicable for whole subnet instead*/
 	char			if_name[IFNAMSIZ]; /*network interface name*/
 	int			af; /*address family, can be ipv4, ipv6 or hw_addr(later)*/	
 	struct	ipacl_addr	addr;
@@ -118,7 +111,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 {
 	char *jid, *allow, *if_name, *fam, *ip_addr, *mask, *p;
 	struct ip_rule *new;
-	int error, prefix, i, j;
+	int error, prefix, i;
 
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
@@ -144,7 +137,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	if_name = strsep(&element, "@");/*add len restriction=IF_NAMESIZE for name*/
+	if_name = strsep(&element, "@");
 	if (sizeof(if_name) > IF_NAMESIZE) {
 		error = EINVAL;
 		goto out;
@@ -184,25 +177,31 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	if (new->af == AF_INET) {
-		if (prefix < 0 || prefix > 32) {
-			error = EINVAL;
-			goto out;
-		}
-		if (prefix == 0)
-			new->mask.addr32[0] = htonl(0);
-
-		else
-			new->mask.addr32[0] = htonl(~((1 << (32 - prefix)) - 1));
-	}
+	/*prefix -1 make policy applicable to individual IP only*/
+	if (prefix == -1)
+		new->subnet_apply = 0;
 	else {
-		if (prefix < 0 || prefix > 128) {
-			error = EINVAL;
-			goto out;
+		new->subnet_apply = 1;
+		if (new->af == AF_INET) {
+			if (prefix < 0 || prefix > 32) {
+				error = EINVAL;
+				goto out;
+			}
+			if (prefix == 0)
+				new->mask.addr32[0] = htonl(0);
+
+			else
+				new->mask.addr32[0] = htonl(~((1 << (32 - prefix)) - 1));
 		}
-		for (i = prefix, j = 0; i > 0; i -= 8, ++j)
-  			new->mask.addr8[j] = i >= 8 ? 0xff
-				: (unsigned long)((0xffU << (8 - i)) & 0xffU);
+		else {
+			if (prefix < 0 || prefix > 128) {
+				error = EINVAL;
+				goto out;
+			}
+			for (i = 0; prefix > 0; prefix -= 8, i++)
+  				new->mask.addr8[i] = prefix >= 8 ? 0xFF : 
+					(unsigned long)((0xFFU << (8 - prefix)) & 0xFFU);
+		}
 	}
 
 out:
@@ -321,7 +320,8 @@ rules_check(struct ucred *cred,
    struct ipacl_addr *ip_addr, struct ifnet *ifp)
 {
 	struct ip_rule *rule;
-	int error;
+	int error, i;
+	struct ipacl_addr subnet;
 	char buf[INET_ADDRSTRLEN];
 	char buf6[INET6_ADDRSTRLEN];	
 
@@ -343,21 +343,47 @@ rules_check(struct ucred *cred,
 			case AF_INET:
 				if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
 					printf("to check ipv4: %s\n", buf);
-				if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
+				if (rule->subnet_apply) {
+					subnet.v4.s_addr = (rule->addr.v4.s_addr & rule->mask.v4.s_addr);
+					/*to verify subnet is correct*/
+					if (inet_ntop(AF_INET, (subnet.addr32), buf, sizeof(buf)) != NULL)
+						printf("SUBNETv4 of RULE: %s\n", buf);
+					if (subnet.v4.s_addr != (ip_addr->v4.s_addr & rule->mask.v4.s_addr))
+						continue;
+				}
+				else {
+					if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
 					continue;
+				}
 				break;
+
 			case AF_INET6:
 				if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
 					printf("to  check ipv6: %s\n", buf6);
-				if (bcmp(&rule->addr, ip_addr, sizeof(*ip_addr))) /*as called in pf.c:685*/
-					continue;
+				if (rule->subnet_apply) {
+					for ( i=0 ; i<4 ; i++ )
+						subnet.addr32[i] = (rule->addr.addr32[i] & rule->mask.addr32[i]);
+					if (inet_ntop(AF_INET6, subnet.addr32, buf6, sizeof(buf6)) != NULL)
+						printf("SUBNETv6 of RULE: %s\n", buf6);
+					for ( i=0 ; i<4 ; i++ ) {
+						if (subnet.addr32[i] != (ip_addr->addr32[i] & rule->mask.addr32[i]))
+							break;
+					}
+					if (i != 4)
+						continue;
+				}
+				else {
+					if (bcmp(&rule->addr, ip_addr, sizeof(*ip_addr))) /*as called in pf.c:685*/
+						continue;
+				}
 				break;
+
 			default:
 				error = EINVAL;
 		}
+
 		if (rule->allow)
 			error = 0;
-		/*subnet check is remaining*/
 	}
 
 	mtx_unlock(&rule_mtx);
@@ -371,14 +397,13 @@ ipacl_ip4_check_jail(struct ucred *cred,
 {
 	struct ipacl_addr ip4_addr;
 	ip4_addr.v4 = *ia;
-	/*function only when ipacl is enabled and it is a jail*/
-	if (!ipacl_enabled || !jailed(cred))
+	
+	/*function only when requested by a jail*/
+	if (!jailed(cred))
 		return 0;
+	
 	rule_printf();
-
-	/*if policy is enforced for ip4 address then check with rules
-	 * else return 0
-	 */
+	/*check with the policy when it is enforced for ipv6*/
 	if (ipacl_ipv4)
 		return rules_check(cred, &ip4_addr, ifp);
 
@@ -393,19 +418,12 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
 	
-	char buf6[INET6_ADDRSTRLEN];	
-	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
-	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));
-
 	rule_printf();
-	/*function only when ipacl is enabled and it is a jail*/
-	if (!ipacl_enabled || !jailed(cred))
+	/*function only when requested by a jail*/
+	if (!jailed(cred))
 		return 0;
 	
-	/*if policy is enforced for ip6 address then check with rules
-	 * else return 0
-	 */
-
+	/*check with the policy when it is enforced for ipv6*/
 	if (ipacl_ipv6)
 		return rules_check(cred, &ip6_addr, ifp);
 	
