@@ -28,11 +28,11 @@ SYSCTL_DECL(_security_mac);
 static SYSCTL_NODE(_security_mac, OID_AUTO, ipacl, CTLFLAG_RW, 0,
     "TrustedBSD mac_ipacl policy controls");
 
-static int ipacl_ipv4 = 0;
+static int ipacl_ipv4 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv4, CTLFLAG_RWTUN,
     &ipacl_ipv4, 0, "Enforce mac_ipacl for IPv4 addresses");
 
-static int ipacl_ipv6 = 0;
+static int ipacl_ipv6 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv6, CTLFLAG_RWTUN,
     &ipacl_ipv6, 0, "Enforce mac_ipacl for IPv6 addresses");
 
@@ -214,7 +214,7 @@ out:
 }
 
 /* parsing rule- jid@allow@interface_name@addr_family@ip_addr@subnet_mask
- * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@24,0@0@epair0b@AF_INET6@FE80::0202:B3FF:FE1E:8329@64
+ * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@24,0@0@epair0b@AF_INET6@ff00::@8
  */
 
 static int
@@ -361,13 +361,15 @@ rules_check(struct ucred *cred,
 				if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
 					printf("to  check ipv6: %s\n", buf6);
 				if (rule->subnet_apply) {
-					for ( i=0 ; i<4 ; i++ )
-						subnet.addr32[i] = (ip_addr->addr32[i] & rule->mask.addr32[i]);
+					for ( i=0 ; i<16 ; i++ ) {
+						subnet.v6.s6_addr[i] = (rule->addr.v6.s6_addr[i] & rule->mask.v6.s6_addr[i]);
+					}
 					if (inet_ntop(AF_INET6, subnet.addr32, buf6, sizeof(buf6)) != NULL)
 						printf("SUBNETv6 of RULE: %s\n", buf6);
+
 					j=0;
-					for ( i=0 ; i<4 ; i++ ) 
-						if (subnet.addr32[i] != (ip_addr->addr32[i] & rule->mask.addr32[i])) {
+					for ( i=0 ; i<16 ; i++ ) 
+						if (subnet.v6.s6_addr[i] != (ip_addr->v6.s6_addr[i] & rule->mask.v6.s6_addr[i])) {
 							j=1;
 							break;
 						}
@@ -424,9 +426,6 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
 	
 	rule_printf();
-	char buf6[INET6_ADDRSTRLEN];
-	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
-	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));
 	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;
