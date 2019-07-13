@@ -47,7 +47,7 @@ exec_test ok ipv6 lo0 'FE80::1101:1221' 15 ${jid2}
 exec_test ok ipv6 lo0 'FE80::abab' 32 ${jid2}
 exec_test ok ipv6 lo0 'FE80::1' 64 ${jid2}
 exec_test fl ipv6 lo0 'FE81::1' 64 ${jid2}
-exec_test fl ipv6 lo0 'FE80::abcd' 15 ${jid2} #last rule disllow the ip in that subnet
+exec_test fl ipv6 lo0 'FE80::abcd' 32 ${jid2} #last rule disllow the ip in that subnet
 
 sysctl security.mac.ipacl.ipv6=0 >/dev/null
 sysctl security.mac.ipacl.rules= >/dev/null
