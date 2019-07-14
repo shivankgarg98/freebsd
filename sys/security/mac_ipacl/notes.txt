@@ -1,0 +1,22 @@
+-----------------------------------
+Documentation Notes-
+1. mac_ipacl impose a MAC policy on IP address in FreeBSD jails. It allows the
+   root of the host to decide the list of IP(v4 and/or v6) addresses or its range
+   (in the form of subnet). THe host can specfiy the MAC rules with sysctl.
+2. To give few examples and rules related to it.(copy it from test scripts)
+2. To discuss sysctl associated with ipacl
+3. To briefly discuss sysctl rules writing
+5. To discuss on using the test scripts
+6. To discuss the limitation of the module and point to be kept in mind while
+   using it.
+
+
+-------------------------------------
+Commands-
+1. kld
+	* kldstat
+	* kldload /usr/obj/usr/home/shivank/freebsd/amd64.amd64/sys/security/mac_ipacl/mac_ipacl.ko
+	* kldunload mac_ipacl
+2. make
+	* make obj depend all install #create obj in /boot/modules, can be loaded and unloaded by just name
+	* make -j 4 KERNCONF=VIMAGE kernel -DKERNFAST
