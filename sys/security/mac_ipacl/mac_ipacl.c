@@ -424,7 +424,9 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	struct ipacl_addr ip6_addr;
 	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
-	
+	char buf6[INET6_ADDRSTRLEN];
+	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
+	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));	
 	rule_printf();
 	/*function only when requested by a jail*/
 	if (!jailed(cred))
