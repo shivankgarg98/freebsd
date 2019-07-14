@@ -1,8 +1,36 @@
 -----------------------------------
 Documentation Notes-
-1. mac_ipacl impose a MAC policy on IP address in FreeBSD jails. It allows the
-   root of the host to decide the list of IP(v4 and/or v6) addresses or its range
-   (in the form of subnet). THe host can specfiy the MAC rules with sysctl.
+IP Address access control policy
+
+1. mac_ipacl allows the root of the host to limit the VNET jail's privileges
+   of setting IPv4 and IPv6 addresses via sysctl(8) interface.
+
+2, Runtime Configuration-sysctl(8) MIB
+   
+   security.mac.ipacl.ipv4: enforce the mac_ipacl for ipv4 addresses (default:1)
+   
+   security.mac.ipacl.ipv6:  enforce the mac_ipacl for ipv6 addresses (default:1)
+   
+   security.mac.ipacl.rules:
+	jail_id@allow@interface@address_family@IP_addr@prefix_length[,jail_id@...]
+	
+	jail_id: Describe the jail id of the jail for which the rule is written
+	
+	allow: 1 for allow and 0 for disallow. action to perform for the rule
+
+	interface: name of the interface the rule is enforced for. Interface is
+			left empty(ie, NULL) then it is a wildcard to enforce rule
+			for all interfaces.
+	
+	address_family: Address family  of the IP_addr. give input string as AF_INET
+			 or AF_INET6 only
+	
+	IP_addr: IP address(or subnet) to be allowed/disallowed. Action depend on the
+			prefix length
+	
+	prefix_length: Prefix length of the subnet to be enforced by the policy.
+			-1 impleis the policy is enforced for indivisual IP address.
+
 2. To give few examples and rules related to it.(copy it from test scripts)
 2. To discuss sysctl associated with ipacl
 3. To briefly discuss sysctl rules writing
