@@ -3,7 +3,8 @@ Documentation Notes-
 IP Address access control policy
 
 1. mac_ipacl allows the root of the host to limit the VNET jail's privileges
-   of setting IPv4 and IPv6 addresses via sysctl(8) interface.
+   of setting IPv4 and IPv6 addresses via sysctl(8) interface. So, the host 
+   can define rules for jails and their interfaces about IP addresses.
 
 2. Its default behaviour is to deny all IP addresses if policy is enforced and allow/deny
    IP(or subnets) according to rules specified with sysctl
@@ -25,15 +26,16 @@ IP Address access control policy
 			left empty(ie, NULL) then it is a wildcard to enforce rule
 			for all interfaces.
 	
-	address_family: Address family  of the IP_addr. give input string as AF_INET
-			 or AF_INET6 only
+	address_family: Address family  of the IP_addr. give input as AF_INET
+			 or AF_INET6 string only
 	
 	IP_addr: IP address(or subnet) to be allowed/deny. Action depend on the
 			prefix length
 	
 	prefix_length: Prefix length of the subnet to be enforced by the policy.
-			-1 impleis the policy is enforced for indivisual IP address.
-
+			-1 implies the policy is enforced for individual IP address.
+			For non-negative value, a range of IP address(present in subnet)
+			which calculated as subnet = IP_addr & mask
 3. Example-
 	a.)
 		sysctl security.mac.ipacl.ipv4=1
@@ -55,7 +57,15 @@ IP Address access control policy
 		It allow IPv4 in the subnet 198.51.100.0/24 for jail 2 and all interfaces.
 		It allow IPv6 address in the subnet fc00::/7 but deny the subnet fc00::1111:2200/120, and allow
 		individual IP fc00::1111:2299 from the denied subnet for all interfaces in the jail 2
-5. To discuss on using the test scripts
+
+4. Using the test scripts:
+	a.)
+		Test scripts are not completely automatic :( So, the user has to create
+		edit the scripts to enter the jid of the test jails and interface.
+		After editing the scripts run make && make install, which then install
+		the scripts in /usr/tests/sys/mac/ipacl.
+		you may also need to create that directory if it gives error.
+
 6. To discuss the limitation of the module and point to be kept in mind while
    using it.
 	a.)
@@ -63,6 +73,10 @@ IP Address access control policy
 		there for a IP(or a set of IP), result depend on final rule.
 	b.)
 		
+7. Future Works
+	a.)
+		rules are given with sysctl interface which gets very complex to give them all in
+		command line. It has to be simplified with a better way to input those rules.
 
 
 -------------------------------------
