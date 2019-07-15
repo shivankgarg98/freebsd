@@ -248,6 +248,10 @@
                     ustack
                     ..
                 ..
+                amd64
+                    arrays
+                    ..
+                ..
             ..
             zfsd
             ..
@@ -717,6 +721,8 @@
                     ..
                 ..
             ..
+        ..
+        devrandom
         ..
         dtrace
         ..
