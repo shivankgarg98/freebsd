@@ -120,7 +120,6 @@ mac_inet_check_SIOCAIFADDR(struct ucred *cred, const struct in_addr *ia,
 	int error; 
 
 	MAC_POLICY_CHECK(ip4_check_jail, cred, ia, ifp);
-	
 	return (error);
 }
 

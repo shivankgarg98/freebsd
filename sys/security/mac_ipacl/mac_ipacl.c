@@ -68,9 +68,7 @@ struct ip_rule {
 	TAILQ_ENTRY(ip_rule)	r_entries; /* queue */ 
 				  
 };
-/* This is copy paste from mac_portacl, the rules and queue will 
- * be same as that of port_acl, can be modified if felt need
- */
+
 static struct mtx			rule_mtx;
 static TAILQ_HEAD(rulehead, ip_rule)	rule_head;
 static char				rule_string[MAC_RULE_STRING_LEN];
@@ -89,7 +87,6 @@ toast_rules(struct rulehead *head)
 static void
 ipacl_init(struct mac_policy_conf *conf)
 {
-	printf("\t INIT: macip_acl loaded\n");
 	mtx_init(&rule_mtx, "rule_mtx", NULL, MTX_DEF);
 	TAILQ_INIT(&rule_head);
 }
@@ -97,7 +94,6 @@ ipacl_init(struct mac_policy_conf *conf)
 static void
 ipacl_destroy(struct mac_policy_conf *conf)
 {
-	printf("\t DESTROY: mac_ipacl unloaded\n");
 	mtx_destroy(&rule_mtx);
 	toast_rules(&rule_head);
 }
@@ -116,8 +112,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 	error = 0;
 	new = malloc(sizeof(*new), M_IPACL, M_ZERO | M_WAITOK);
 
-	jid = strsep(&element, "@"); /*specifying the jail_name/jid instead
-				       of only jid will be done later*/
+	jid = strsep(&element, "@");
 	if (jid == NULL) {
 		error = EINVAL;
 		goto out;
@@ -213,7 +208,8 @@ out:
 	return (error);
 }
 
-/* parsing rule- jid@allow@interface_name@addr_family@ip_addr@subnet_mask
+/*
+ * parsing rule- jid@allow@interface_name@addr_family@ip_addr@subnet_mask
  * Eg:sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET@192.168.42.2@24,0@0@epair0b@AF_INET6@ff00::@8
  */
 
@@ -289,6 +285,7 @@ SYSCTL_PROC(_security_mac_ipacl, OID_AUTO, rules,
 /*
  * rough printing rules for debugging purposes
  */
+#ifdef _DEBUG
 static int
 rule_printf(){
 	struct ip_rule *rule;
@@ -314,6 +311,7 @@ rule_printf(){
 	}
 	return 0; 
 }
+#endif
 
 static int
 rules_check(struct ucred *cred,
@@ -322,8 +320,6 @@ rules_check(struct ucred *cred,
 	struct ip_rule *rule;
 	int error, i, j;
 	struct ipacl_addr subnet;
-	char buf[INET_ADDRSTRLEN];
-	char buf6[INET6_ADDRSTRLEN];	
 
 	error = EPERM;
 	
@@ -341,13 +337,8 @@ rules_check(struct ucred *cred,
 
 		switch (rule->af) {
 			case AF_INET:
-				if (inet_ntop(AF_INET, &(ip_addr->addr32), buf, sizeof(buf)) != NULL)
-					printf("to check ipv4: %s\n", buf);
 				if (rule->subnet_apply) {
 					subnet.v4.s_addr = (rule->addr.v4.s_addr & rule->mask.v4.s_addr);
-					/*to verify subnet is correct*/
-					if (inet_ntop(AF_INET, (subnet.addr32), buf, sizeof(buf)) != NULL)
-						printf("SUBNETv4 of RULE: %s\n", buf);
 					if (subnet.v4.s_addr != (ip_addr->v4.s_addr & rule->mask.v4.s_addr))
 						continue;
 				}
@@ -358,15 +349,10 @@ rules_check(struct ucred *cred,
 				break;
 
 			case AF_INET6:
-				if (inet_ntop(AF_INET6, &(ip_addr->addr32), buf6, sizeof(buf6)) != NULL)
-					printf("to  check ipv6: %s\n", buf6);
 				if (rule->subnet_apply) {
 					for ( i=0 ; i<16 ; i++ ) {
 						subnet.v6.s6_addr[i] = (rule->addr.v6.s6_addr[i] & rule->mask.v6.s6_addr[i]);
 					}
-					if (inet_ntop(AF_INET6, subnet.addr32, buf6, sizeof(buf6)) != NULL)
-						printf("SUBNETv6 of RULE: %s\n", buf6);
-
 					j=0;
 					for ( i=0 ; i<16 ; i++ ) 
 						if (subnet.v6.s6_addr[i] != (ip_addr->v6.s6_addr[i] & rule->mask.v6.s6_addr[i])) {
@@ -386,7 +372,6 @@ rules_check(struct ucred *cred,
 			default:
 				error = EINVAL;
 		}
-		printf("control reaches here");
 		if (rule->allow)
 			error = 0;
 		else
@@ -409,8 +394,7 @@ ipacl_ip4_check_jail(struct ucred *cred,
 	if (!jailed(cred))
 		return 0;
 	
-	rule_printf();
-	/*check with the policy when it is enforced for ipv6*/
+	/*check with the policy only when it is enforced for ipv4*/
 	if (ipacl_ipv4)
 		return rules_check(cred, &ip4_addr, ifp);
 
@@ -424,10 +408,7 @@ ipacl_ip6_check_jail(struct ucred *cred,
 	struct ipacl_addr ip6_addr;
 	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
-	char buf6[INET6_ADDRSTRLEN];
-	printf("\nIPV6_SPRINTF = %s\n",ip6_sprintf(buf6, ia6));
-	printf("\nIPV6_SPRINTF COPIED= %s\n",ip6_sprintf(buf6, &ip6_addr.v6));	
-	rule_printf();
+	
 	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;

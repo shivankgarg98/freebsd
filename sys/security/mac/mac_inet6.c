@@ -186,7 +186,6 @@ mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6,
 	int error;
 
 	MAC_POLICY_CHECK(ip6_check_jail, cred, ia6, ifp);
-
 	return (error);
 	
 }
