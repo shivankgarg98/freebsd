@@ -5,7 +5,10 @@ IP Address access control policy
 1. mac_ipacl allows the root of the host to limit the VNET jail's privileges
    of setting IPv4 and IPv6 addresses via sysctl(8) interface.
 
-2, Runtime Configuration-sysctl(8) MIB
+2. Its default behaviour is to deny all IP addresses if policy is enforced and allow/deny
+   IP(or subnets) according to rules specified with sysctl
+
+   Runtime Configuration-sysctl(8) MIB
    
    security.mac.ipacl.ipv4: enforce the mac_ipacl for ipv4 addresses (default:1)
    
@@ -16,7 +19,7 @@ IP Address access control policy
 	
 	jail_id: Describe the jail id of the jail for which the rule is written
 	
-	allow: 1 for allow and 0 for disallow. action to perform for the rule
+	allow: 1 for allow and 0 for deny. action to perform for the rule
 
 	interface: name of the interface the rule is enforced for. Interface is
 			left empty(ie, NULL) then it is a wildcard to enforce rule
@@ -25,18 +28,41 @@ IP Address access control policy
 	address_family: Address family  of the IP_addr. give input string as AF_INET
 			 or AF_INET6 only
 	
-	IP_addr: IP address(or subnet) to be allowed/disallowed. Action depend on the
+	IP_addr: IP address(or subnet) to be allowed/deny. Action depend on the
 			prefix length
 	
 	prefix_length: Prefix length of the subnet to be enforced by the policy.
 			-1 impleis the policy is enforced for indivisual IP address.
 
-2. To give few examples and rules related to it.(copy it from test scripts)
-2. To discuss sysctl associated with ipacl
-3. To briefly discuss sysctl rules writing
+3. Example-
+	a.)
+		sysctl security.mac.ipacl.ipv4=1
+		sysctl security.mac.ipacl.ipv6=0
+		sysctl security.mac.ipacl.rules=1@1@@AF_INET@169.254.123.123@-1
+		It allows only 169.254.123.123 IPv4 address for all interfaces(wildcard) of jail 1.
+		It allows all IPv6 address since policy is not enforced for IPv6.
+		
+ 	b.)
+		sysctl security.mac.ipacl.ipv4=1
+		sysctl security.mac.ipacl.ipv6=1
+		sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET6@fe80::@32,1@0@epair0b@AF_INET6@fe80::abcd@-1
+		It deny all IPv4 address as policy is enforced but no rules are specified about it.
+		It allow all IPv6 address in the subnet- fe80::/32 except fe80::abcd for interface epair0b only
+	c.)
+		sysctl security.mac.ipacl.ipv4=1
+		sysctl security.mac.ipacl.ipv6=1
+		sysctl security.mac.ipacl.rules=2@1@@AF_INET6@fc00::@7,2@0@@AF_INET6@fc00::1111:2200@120,2@1@@AF_INET6@fc00::1111:2299@-1,1@1@@AF_INET@198.51.100.0@24
+		It allow IPv4 in the subnet 198.51.100.0/24 for jail 2 and all interfaces.
+		It allow IPv6 address in the subnet fc00::/7 but deny the subnet fc00::1111:2200/120, and allow
+		individual IP fc00::1111:2299 from the denied subnet for all interfaces in the jail 2
 5. To discuss on using the test scripts
 6. To discuss the limitation of the module and point to be kept in mind while
    using it.
+	a.)
+		rules are checked in the same sequence they are given. If many rules are 
+		there for a IP(or a set of IP), result depend on final rule.
+	b.)
+		
 
 
 -------------------------------------
