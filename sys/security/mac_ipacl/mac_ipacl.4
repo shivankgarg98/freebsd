@@ -1,0 +1,172 @@
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
+.\" Copyright (c) 2019 Bjoern A. Zeeb <bz@FreeBSD.org>
+.\" 
+.\" All rights reserved.
+.\" This code was developed as a Google Summer of Code 2019 project
+.\" under the guidance of Mr. Bjoern A. Zeeb.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+
+.Dd July 19, 2019
+.Dt MAC_IPACL 4
+.Os
+.Sh NAME
+.Nm mac_ipacl
+.Nd "IP Address access control policy"
+.Sh SYNOPSIS
+To compile the IP address access control policy into your kernel,
+add the following lines in your kernel configuration file:
+
+
+.Sh DESCRIPTION
+The
+.Nm
+policy allows allows the root of the host to limit the
+.Xr VNET 9
+jail's privileges
+of setting
+.Tn IPv4
+and
+.Tn IPv6
+addresses via
+.Xr sysctl 8
+interface. So, the host can
+define rules for jails and their interfaces about IP addresses.
+.Pp
+Its default behaviour is to deny all IP addresses for the jail if
+.Nm
+policy is enforced and allow/deny IP(or subnets) according to
+.Va security.mac.ipacl.rules
+string specified with 
+.Xr sysctl 8
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+MIBs are used to control enforcement and behavior of this MAC POlicy.
+.Bl -tag -width indent
+.It Va security.mac.ipacl.ipv4
+Enforce
+.Nm
+for IPv4 addresses.
+(Default: 1).
+.It Va security.mac.ipacl.ipv6
+Enforce
+.Nm
+for IPv6 addresses.
+(Default: 1).
+.It Va security.mac.ipacl.rules
+The IP address access control list is specified in the following format:
+.Pp
+.Sm off
+.D1 Ar jid @ allow @ interface @ addr_family @ IP_addr @ prefix Op , Ar jid @ ...
+.Sm on
+.Bl -tag -width ".Ar interface"
+.It Ar jid
+Describe the jail id of the jail for which the rule is written.
+.It Ar allow
+1 for allow and 0 for deny. Decides action to perform for the rule.
+.It Ar interface
+Name of the interface the rule is enforced for. Interface is
+left empty(ie, NULL) then it is a wildcard to enforce rule
+for all interfaces.
+.It Ar addr_family
+Address family of the IP_addr. give input as AF_INET or AF_INET6
+string only.
+.It Ar IP_addr
+IP address(or subnet) to be allowed/deny. Action depend on the
+prefix length.
+.It Ar prefix
+Prefix length of the subnet to be enforced by the policy. -1 implies
+the policy is enforced for individual IP address. For non-negative value,
+a range of IP address(present in subnet) which calculated as
+subnet = IP_addr & mask
+.Sh EXAMPLES
+.Pp
+.Bl -tag indent
+.It Va 1.
+.Dl sysctl security.mac.ipacl.ipv4=1
+.Dl sysctl security.mac.ipacl.ipv6=0
+.Dl sysctl security.mac.ipacl.rules=1@1@@AF_INET@169.254.123.123@-1
+.Pp
+It allows only 169.254.123.123 IPv4 address for all interfaces (wildcard) of jail 1. It allows all IPv6 address since policy is not enforced for IPv6.
+.It Va 2.
+.Dl sysctl security.mac.ipacl.ipv4=1
+.Dl sysctl security.mac.ipacl.ipv6=1
+.Dl sysctl security.mac.ipacl.rules=1@1@epair0b@AF_INET6@fe80::@32,1@0@epair0b@AF_INET6@fe80::abcd@-1
+.Pp
+It deny all IPv4 address as policy is enforced but no rules are specified
+about it. It allow all IPv6 address in the subnet- fe80::/32 except
+fe80::abcd for interface epair0b only
+.It Va 3.
+.Dl sysctl security.mac.ipacl.ipv4=1
+.Dl sysctl security.mac.ipacl.ipv6=1
+.Dl sysctl security.mac.ipacl.rules=2@1@@AF_INET6@fc00::@7,2@0@@AF_INET6@fc00::1111:2200@120,2@1@@AF_INET6@fc00::1111:2299@-1,1@1@@AF_INET@198.51.100.0@24
+.Pp
+It allow IPv4 in the subnet 198.51.100.0/24 for jail 2 and
+all interfaces. It allow IPv6 address in the subnet fc00::/7 but
+deny the subnet fc00::1111:2200/120, and allow individual IP
+fc00::1111:2299 from the denied subnet for all interfaces in the jail 2
+
+.Sh TEST SCRIPTS
+.It
+est scripts are not completely automatic :( So, the user has to create
+edit the scripts to enter the jid of the test jails and interface.
+.It
+After editing the scripts run make && make install, which then install
+the scripts in /usr/tests/sys/mac/ipacl.
+you may also need to create that directory if it gives error.
+
+.Sh LIMITATIONS/PRECATIONS
+.It
+Rules are checked in the same sequence they are given. If many rules are 
+there for a IP(or a set of IP), result depend on final rule.
+		
+.Sh FUTURE WORKS
+.It
+Rules are given with sysctl interface which gets very complex to give them all in
+command line. It has to be simplified with a better way to input those rules.
+
+.Sh SEE ALSO
+.Xr mac 4 ,
+.Xr mac_biba 4,
+.Xr mac_bsdextended 4 ,
+.Xr mac_ifoff 4 ,
+.Xr mac_lomac 4 ,
+.Xr mac_mls 4 ,
+.Xr mac_none 4 ,
+.Xr mac_partition 4 ,
+.Xr mac_portacl 4 ,
+.Xr mac_seeotheruids 4 ,
+.Xr mac_test 4 ,
+.Xr maclabel 7 ,
+.Xr mac 9
+
+.Sh AUTHORS
+The
+.Nm
+policy module was developed as a Google Summer of Code Project in 2019
+by Shivank Garg under the guidance of Bjoern A. Zeeb
