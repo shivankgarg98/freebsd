@@ -62,13 +62,12 @@ struct ipacl_addr {
 struct ip_rule {
 	int			jid;
 	bool			allow;
-	bool			subnet_apply; /*apply policy on subnet instead*/
+	bool			subnet_apply; /*rule applied on whole subnet*/
 	char			if_name[IFNAMSIZ]; /*network interface name*/
 	int			af; /*address family*/
 	struct	ipacl_addr	addr;
 	struct	ipacl_addr	mask;
 	TAILQ_ENTRY(ip_rule)	r_entries;
-				  
 };
 
 static struct mtx			rule_mtx;
@@ -187,6 +186,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 				new->mask.addr32[0] = htonl(0);
 			else
 				new->mask.addr32[0] = htonl(~((1 << (32 - prefix)) - 1));
+			new->addr.addr32[0] &= new->mask.addr32[0];
 		}
 		else {
 			if (prefix < 0 || prefix > 128) {
@@ -195,7 +195,9 @@ parse_rule_element(char *element, struct ip_rule **rule)
 			}
 			for (i = 0; prefix > 0; prefix -= 8, i++)
   				new->mask.addr8[i] = prefix >= 8 ? 0xFF : 
-					(unsigned long)((0xFFU << (8 - prefix)) & 0xFFU);
+					(u_int8_t)((0xFFU << (8 - prefix)) & 0xFFU);
+			for (i=0; i<16; i++)
+				new->addr.addr8[i] &= new->mask.addr8[i];
 		}
 	}
 
@@ -284,8 +286,9 @@ SYSCTL_PROC(_security_mac_ipacl, OID_AUTO, rules,
  * rough printing rules for debugging purposes
  */
 #ifdef _DEBUG
-void
-rule_printf(){
+static int
+rule_printf()
+{
 	struct ip_rule *rule;
 	char buf[INET_ADDRSTRLEN];
 	char buf6[INET6_ADDRSTRLEN];
@@ -307,6 +310,7 @@ rule_printf(){
 				printf("mask addr: %s\n", buf6);
 		}
 	}
+	return 0;
 }
 #endif
 
@@ -315,9 +319,8 @@ rules_check(struct ucred *cred,
     struct ipacl_addr *ip_addr, struct ifnet *ifp)
 {
 	struct ip_rule *rule;
-	int error, i, j;
-	struct ipacl_addr subnet;
-
+	int error, i;
+	bool same_subnet;
 	error = EPERM;
 	
 	mtx_lock(&rule_mtx);
@@ -335,8 +338,7 @@ rules_check(struct ucred *cred,
 		switch (rule->af) {
 			case AF_INET:
 				if (rule->subnet_apply) {
-					subnet.v4.s_addr = (rule->addr.v4.s_addr & rule->mask.v4.s_addr);
-					if (subnet.v4.s_addr != (ip_addr->v4.s_addr & rule->mask.v4.s_addr))
+					if (rule->addr.v4.s_addr != (ip_addr->v4.s_addr & rule->mask.v4.s_addr))
 						continue;
 				}
 				else
@@ -346,17 +348,14 @@ rules_check(struct ucred *cred,
 
 			case AF_INET6:
 				if (rule->subnet_apply) {
-					for ( i=0 ; i<16 ; i++ )
-						subnet.v6.s6_addr[i] = (rule->addr.v6.s6_addr[i] & rule->mask.v6.s6_addr[i]);
-					j=0;
+					same_subnet=true;
 					for ( i=0 ; i<16 ; i++ ) 
-						if (subnet.v6.s6_addr[i] != (ip_addr->v6.s6_addr[i] & rule->mask.v6.s6_addr[i])) {
-							j=1;
+						if (rule->addr.v6.s6_addr[i] != (ip_addr->v6.s6_addr[i] & rule->mask.v6.s6_addr[i])) {
+							same_subnet=false;
 							break;
 						}
-					if (j)
+					if (!same_subnet)
 						continue;
-					
 				}
 				else
 					if (bcmp(&rule->addr, ip_addr, sizeof(*ip_addr)))
@@ -407,11 +406,11 @@ ipacl_ip6_check_jail(struct ucred *cred,
 
 	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
 	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
-	
+
 	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;
-
+	
 	/*check with the policy when it is enforced for ipv6*/
 	if (ipacl_ipv6)
 		return rules_check(cred, &ip6_addr, ifp);

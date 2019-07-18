@@ -4,7 +4,7 @@
 dir=`dirname $0`
 . ${dir}/ipacl_script.sh
 
-echo "1..32"
+echo "1..36"
 jid1=1
 jid2=3
 
@@ -57,6 +57,15 @@ exec_test ok ipv6 ${if2_jail2} 'FE80::abab' 32 ${jid2}
 exec_test fl ipv6 ${if2_jail2} 'FE81::1' 64 ${jid2}
 exec_test fl ipv6 ${if2_jail2} 'FE80::abcd' 32 ${jid2} #last rule disllow the ip in that subnet
 
+
+# add more tests for subnet
+sysctl security.mac.ipacl.rules=${jid2}@1@@AF_INET6@2001:2::@48,${jid2}@1@@AF_INET6@2001:3::@32 >/dev/null
+exec_test fl ipv6 ${if2_jail2} '2001:2:0001::1' 64 ${jid2}
+exec_test fl ipv6 ${if2_jail2} '2001:2:1000::1' 32 ${jid2}
+exec_test ok ipv6 ${if2_jail2} '2001:3:0001::1' 64 ${jid2}
+exec_test fl ipv6 ${if2_jail2} '2001:4::1' 64 ${jid2} 
+
+
 #add more tests of ULA address space
 #allow subnet fc00::/7 except subnet fc00::1111:22xx but allow fc00::1111:2281
 sysctl security.mac.ipacl.rules=${jid1}@1@@AF_INET6@fc00::@7,${jid1}@0@@AF_INET6@fc00::1111:2200@120,${jid1}@1@@AF_INET6@fc00::1111:2299@-1,${jid1}@1@@AF_INET6@2001:db8::@32,${jid1}@0@@AF_INET6@2001:db8::abcd@-1 >/dev/null
@@ -76,5 +85,4 @@ exec_test ok ipv6 ${if1_jail1} '2001:db8:1111:2222:3333:4444:5555:6666' 32 ${jid
 exec_test fl ipv6 ${if1_jail1} '2000:db9:1111:2222:3333:4444:5555:6666' 32 ${jid1}
 exec_test fl ipv6 ${if2_jail1} '2001:db8::abcd' 32 ${jid1}
 
-sysctl security.mac.ipacl.ipv6=0 >/dev/null
 sysctl security.mac.ipacl.rules= >/dev/null
