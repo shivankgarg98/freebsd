@@ -1,4 +1,45 @@
-/* MAC policy module for limiting IP address to a VNET enabled jail. */
+/*-
+ * SPDX-License-Identifier: BSD-2-Clause
+ *
+ * Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
+ * Copyright (c) 2019 Bjoern A. Zeeb <bz@FreeBSD.org>
+ * 
+ * All rights reserved.
+ * This code was developed as a Google Summer of Code 2019 project
+ * under the guidance of Mr. Bjoern A. Zeeb.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+
+/*
+ * mac_ipacl allows the root of the host to limit the VNET jail's privileges
+ * of setting IPv4 and IPv6 addresses via sysctl(8) interface. So, the host
+ * can define rules for jails and their interfaces about IP addresses.
+ * 
+ * sysctl(8) is to be used to modify the rules string in following format-
+ * "jail_id@allow@interface@address_family@IP_addr@prefix_length[,jail_id@...]"
+ */
 
 #include <sys/param.h>
 #include <sys/module.h>
