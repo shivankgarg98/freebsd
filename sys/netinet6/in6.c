@@ -112,7 +112,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/in6_fib.h>
 #include <netinet6/in6_pcb.h>
 
+#ifdef MAC
 #include <security/mac/mac_framework.h>
+#endif
 
 /*
  * struct in6_ifreq and struct ifreq must be type punnable for common members
@@ -558,15 +560,12 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
 		
-		/*
-		*If MAC is defined, check the credentials
-		*only block jails from setting their IPv6 addr
-		*/
 #ifdef MAC
-		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred, &sa6->sin6_addr, ifp);
-		if (error) {
+		/*Check if a MAC policy disallows setting the IPv6 address.*/
+		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred,
+		    &sa6->sin6_addr, ifp);
+		if (error)
 			goto out;
-		}
 #endif
 		/*
 		 * first, make or update the interface address structure,

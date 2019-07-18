@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 PACKAGE=        tests
 
 TESTSDIR=       ${TESTSBASE}/sys/mac/ipacl

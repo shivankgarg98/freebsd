@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FresBSD$
+# $FreeBSD$
 
 sysctl security.mac.ipacl >/dev/null 2>&1
 if [ $? -ne 0 ]; then

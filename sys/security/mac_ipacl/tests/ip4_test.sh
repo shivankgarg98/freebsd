@@ -1,11 +1,12 @@
 #!/bin/sh
+# $FreeBSD$
 
 dir=`dirname $0`
 . ${dir}/ipacl_script.sh
 
 echo "1..28" 
 jid1=1
-jid2=5
+jid2=3
 #run this script for epair0a and epair0b as of now
 #use ifconfig epair create to generate epair
 #epair0a = host #epair0b = jail 1

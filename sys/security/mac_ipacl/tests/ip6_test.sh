@@ -1,11 +1,12 @@
 #!/bin/sh
+# $FreeBSD$
 
 dir=`dirname $0`
 . ${dir}/ipacl_script.sh
 
 echo "1..32"
 jid1=1
-jid2=5
+jid2=3
 
 if1_host="epair0a"
 if1_jail1="epair0b"

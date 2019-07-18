@@ -173,12 +173,7 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 	    q6->ip6q_label);
 }
 
-/*
- * return 0 if the IPv6 address is allowed for the jail
- * if MAC policy doesn't allow that IP address throw error
- * NOTE - SIOCAIFADDR_IN6 is corresponding call for IPV6
- */
-
+/* Check with rules in module if the IPv4 address is allowed.*/
 int
 mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6,
     struct ifnet *ifp)
@@ -187,7 +182,6 @@ mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6,
 
 	MAC_POLICY_CHECK(ip6_check_jail, cred, ia6, ifp);
 	return (error);
-	
 }
 void
 mac_netinet6_nd6_send(struct ifnet *ifp, struct mbuf *m)
