@@ -559,7 +559,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	{
 		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
-		
+
 #ifdef MAC
 		/*Check if a MAC policy disallows setting the IPv6 address.*/
 		error = mac_inet6_check_SIOCAIFADDR(td->td_ucred,

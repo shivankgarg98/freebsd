@@ -40,8 +40,23 @@
 .Sh SYNOPSIS
 To compile the IP address access control policy into your kernel,
 add the following lines in your kernel configuration file:
-
-
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Cd "options MAC_IPACL"
+.Ed
+.Pp
+The
+.Nm
+module can be loaded at boot time. Add the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options MAC"
+.Ed
+.Pp
+and in
+.Xr loader.conf 5 :
+.Pp
+.Dl "mac_ipacl_load=""YES"""
 .Sh DESCRIPTION
 The
 .Nm
@@ -133,7 +148,7 @@ fc00::1111:2299 from the denied subnet for all interfaces in the jail 2
 
 .Sh TEST SCRIPTS
 .It
-est scripts are not completely automatic :( So, the user has to create
+Test scripts are not completely automatic :( So, the user has to create
 edit the scripts to enter the jid of the test jails and interface.
 .It
 After editing the scripts run make && make install, which then install
