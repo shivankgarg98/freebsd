@@ -40,6 +40,8 @@
  * sysctl(8) is to be used to modify the rules string in following format-
  * "jail_id@allow@interface@address_family@IP_addr@prefix_length[,jail_id@...]"
  */
+#include "opt_inet.h"
+#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/module.h>
@@ -68,17 +70,17 @@ SYSCTL_DECL(_security_mac);
 static SYSCTL_NODE(_security_mac, OID_AUTO, ipacl, CTLFLAG_RW, 0,
     "TrustedBSD mac_ipacl policy controls");
 
-//#ifdef INET
+#ifdef INET
 static int ipacl_ipv4 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv4, CTLFLAG_RWTUN,
     &ipacl_ipv4, 0, "Enforce mac_ipacl for IPv4 addresses");
-//#endif
+#endif
 
-//#ifdef INET6
+#ifdef INET6
 static int ipacl_ipv6 = 1;
 SYSCTL_INT(_security_mac_ipacl, OID_AUTO, ipv6, CTLFLAG_RWTUN,
     &ipacl_ipv6, 0, "Enforce mac_ipacl for IPv6 addresses");
-//#endif
+#endif
 
 static MALLOC_DEFINE(M_IPACL, "ipacl_rule", "Rules for mac_ipacl");
 
@@ -86,14 +88,22 @@ static MALLOC_DEFINE(M_IPACL, "ipacl_rule", "Rules for mac_ipacl");
 
 struct ipacl_addr {
 	union {
+#ifdef INET
 		struct in_addr	ipv4;
+#endif
+#ifdef INET6
 		struct in6_addr	ipv6;
+#endif
 		u_int8_t	addr8[16];
 		u_int16_t	addr16[8];
 		u_int32_t	addr32[4];
 	} ipa; /* 128 bit address*/
+#ifdef INET
 #define v4	ipa.ipv4
+#endif
+#ifdef INET6
 #define v6	ipa.ipv6
+#endif
 #define addr8	ipa.addr8
 #define addr16	ipa.addr16
 #define addr32	ipa.addr32
@@ -129,6 +139,7 @@ static void
 ipacl_init(struct mac_policy_conf *conf)
 {
 
+	printf("TEST this is");
 	mtx_init(&rule_mtx, "rule_mtx", NULL, MTX_DEF);
 	TAILQ_INIT(&rule_head);
 }
@@ -217,36 +228,44 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		new->subnet_apply = false;
 	else {
 		new->subnet_apply = true;
-		if (new->af == AF_INET) {
-			if (prefix < 0 || prefix > 32) {
-				error = EINVAL;
-				goto out;
-			}
-			if (prefix == 0)
-				new->mask.addr32[0] = htonl(0);
-			else
-				new->mask.addr32[0] =
-				    htonl(~((1 << (32 - prefix)) - 1));
-			new->addr.addr32[0] &= new->mask.addr32[0];
-		}
-		else {
-			if (prefix < 0 || prefix > 128) {
-				error = EINVAL;
-				goto out;
-			}
-			for (i = 0; prefix > 0; prefix -= 8, i++)
-  				new->mask.addr8[i] =
-				    prefix >= 8 ? 0xFF :
-				    (u_int8_t)((0xFFU << (8 - prefix)) & 0xFFU);
-			for (i=0; i<16; i++)
-				new->addr.addr8[i] &= new->mask.addr8[i];
+		switch (new->af) {
+#ifdef INET
+			case AF_INET:
+				if (prefix < 0 || prefix > 32) {
+					error = EINVAL;
+					goto out;
+				}
+				if (prefix == 0)
+					new->mask.addr32[0] = htonl(0);
+				else
+					new->mask.addr32[0] =
+					    htonl(~((1 << (32 - prefix)) - 1));
+				new->addr.addr32[0] &= new->mask.addr32[0];
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				if (prefix < 0 || prefix > 128) {
+					error = EINVAL;
+					goto out;
+				}
+				for (i = 0; prefix > 0; prefix -= 8, i++)
+					new->mask.addr8[i] =
+					    prefix >= 8 ? 0xFF : (u_int8_t)
+					    ((0xFFU << (8 - prefix)) & 0xFFU);
+				for (i=0; i<16; i++)
+					new->addr.addr8[i]
+					    &= new->mask.addr8[i];
+				break;
+#endif
 		}
 	}
 out:
 	if (error != 0) {
 		free(new, M_IPACL);
 		*rule = NULL;
-	} else
+	}
+	else
 		*rule = new;
 	return (error);
 }
@@ -330,6 +349,7 @@ rules_check(struct ucred *cred,
 	struct ip_rule *rule;
 	int error, i;
 	bool same_subnet;
+	
 	error = EPERM;
 	
 	mtx_lock(&rule_mtx);
@@ -347,6 +367,7 @@ rules_check(struct ucred *cred,
 			continue;
 
 		switch (rule->af) {
+#ifdef INET
 			case AF_INET:
 				if (rule->subnet_apply) {
 					if (rule->addr.v4.s_addr !=
@@ -359,6 +380,8 @@ rules_check(struct ucred *cred,
 					    rule->addr.v4.s_addr)
 						continue;
 				break;
+#endif
+#ifdef INET6
 			case AF_INET6:
 				if (rule->subnet_apply) {
 					same_subnet=true;
@@ -377,7 +400,8 @@ rules_check(struct ucred *cred,
 					    sizeof(*ip_addr)))
 						continue;
 				break;
-			default:
+#endif
+			default:/*dead block, should I keep it?*/
 				error = EINVAL;
 		}
 
@@ -395,6 +419,7 @@ rules_check(struct ucred *cred,
 /* Feature request: Can we make this a sysctl policy as well defaulting
  * to jails only, but if changed also applying to the base system?
  */
+#ifdef INET
 static int
 ipacl_ip4_check_jail(struct ucred *cred,
     const struct in_addr *ia, struct ifnet *ifp)
@@ -413,7 +438,9 @@ ipacl_ip4_check_jail(struct ucred *cred,
 
 	return 0;
 }
+#endif
 
+#ifdef INET6
 static int
 ipacl_ip6_check_jail(struct ucred *cred,
     const struct in6_addr *ia6, struct ifnet *ifp)
@@ -433,17 +460,18 @@ ipacl_ip6_check_jail(struct ucred *cred,
 
 	return 0;
 }
+#endif
 
 static struct mac_policy_ops ipacl_ops =
 {
 	.mpo_init = ipacl_init,
 	.mpo_destroy = ipacl_destroy,
-//#ifdef INET
+#ifdef INET
 	.mpo_ip4_check_jail = ipacl_ip4_check_jail,
-//#endif
-//#ifdef INET6
+#endif
+#ifdef INET6
 	.mpo_ip6_check_jail = ipacl_ip6_check_jail,
-//#endif
+#endif
 };
 
 MAC_POLICY_SET(&ipacl_ops, mac_ipacl, "TrustedBSD MAC/ipacl",
