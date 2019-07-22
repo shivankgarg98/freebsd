@@ -173,7 +173,7 @@ mac_ip6q_update(struct mbuf *m, struct ip6q *q6)
 	    q6->ip6q_label);
 }
 
-/* Check with rules in module if the IPv4 address is allowed.*/
+/* Check with rules in module if the IPv6 address is allowed. */
 int
 mac_inet6_check_SIOCAIFADDR(struct ucred *cred, const struct in6_addr *ia6,
     struct ifnet *ifp)

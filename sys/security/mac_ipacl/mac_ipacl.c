@@ -2,7 +2,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  *
  * Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
- * Copyright (c) 2019 Bjoern A. Zeeb <bz@FreeBSD.org>
  * 
  * All rights reserved.
  * This code was developed as a Google Summer of Code 2019 project
@@ -113,9 +112,9 @@ struct ipacl_addr {
 struct ip_rule {
 	int			jid;
 	bool			allow;
-	bool			subnet_apply; /*rule applied on whole subnet*/
-	char			if_name[IFNAMSIZ]; /*network interface name*/
-	int			af; /*address family*/
+	bool			subnet_apply; /* Apply rule on whole subnet. */
+	char			if_name[IFNAMSIZ];
+	int			af; /* Address family. */
 	struct	ipacl_addr	addr;
 	struct	ipacl_addr	mask;
 	TAILQ_ENTRY(ip_rule)	r_entries;
@@ -190,7 +189,7 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	/* Empty interface name is wildcard to all interfaces.*/
+	/* Empty interface name is wildcard to all interfaces. */
 	bzero(new->if_name, IFNAMSIZ);
 	bcopy(if_name, new->if_name, strlen(if_name));
 	fam = strsep(&element, "@");
@@ -223,40 +222,38 @@ parse_rule_element(char *element, struct ip_rule **rule)
 		error = EINVAL;
 		goto out;
 	}
-	/*Value -1 for prefix make policy applicable to individual IP only.*/
+	/* Value -1 for prefix make policy applicable to individual IP only. */
 	if (prefix == -1)
 		new->subnet_apply = false;
 	else {
 		new->subnet_apply = true;
 		switch (new->af) {
 #ifdef INET
-			case AF_INET:
-				if (prefix < 0 || prefix > 32) {
-					error = EINVAL;
-					goto out;
-				}
-				if (prefix == 0)
-					new->mask.addr32[0] = htonl(0);
-				else
-					new->mask.addr32[0] =
-					    htonl(~((1 << (32 - prefix)) - 1));
-				new->addr.addr32[0] &= new->mask.addr32[0];
-				break;
+		case AF_INET:
+			if (prefix < 0 || prefix > 32) {
+				error = EINVAL;
+				goto out;
+			}
+			if (prefix == 0)
+				new->mask.addr32[0] = htonl(0);
+			else
+				new->mask.addr32[0] =
+				    htonl(~((1 << (32 - prefix)) - 1));
+			new->addr.addr32[0] &= new->mask.addr32[0];
+			break;
 #endif
 #ifdef INET6
-			case AF_INET6:
-				if (prefix < 0 || prefix > 128) {
-					error = EINVAL;
-					goto out;
-				}
-				for (i = 0; prefix > 0; prefix -= 8, i++)
-					new->mask.addr8[i] =
-					    prefix >= 8 ? 0xFF : (u_int8_t)
-					    ((0xFFU << (8 - prefix)) & 0xFFU);
-				for (i=0; i<16; i++)
-					new->addr.addr8[i]
-					    &= new->mask.addr8[i];
-				break;
+		case AF_INET6:
+			if (prefix < 0 || prefix > 128) {
+				error = EINVAL;
+				goto out;
+			}
+			for (i = 0; prefix > 0; prefix -= 8, i++)
+				new->mask.addr8[i] = prefix >= 8 ? 0xFF :
+				    (u_int8_t)((0xFFU << (8 - prefix)) & 0xFFU);
+			for (i=0; i<16; i++)
+				new->addr.addr8[i] &= new->mask.addr8[i];
+			break;
 #endif
 		}
 	}
@@ -264,8 +261,7 @@ out:
 	if (error != 0) {
 		free(new, M_IPACL);
 		*rule = NULL;
-	}
-	else
+	} else
 		*rule = new;
 	return (error);
 }
@@ -358,7 +354,7 @@ rules_check(struct ucred *cred,
 	    rule != NULL;
 	    rule = TAILQ_NEXT(rule, r_entries)) {
 		
-		/*Skip if current rule applies to different jail.*/
+		/* Skip if current rule applies to different jail. */
 		if (cred->cr_prison->pr_id != rule->jid)
 			continue;
 		
@@ -368,41 +364,35 @@ rules_check(struct ucred *cred,
 
 		switch (rule->af) {
 #ifdef INET
-			case AF_INET:
-				if (rule->subnet_apply) {
-					if (rule->addr.v4.s_addr !=
-					    (ip_addr->v4.s_addr &
-					    rule->mask.v4.s_addr))
-						continue;
-				}
-				else
-					if (ip_addr->v4.s_addr !=
-					    rule->addr.v4.s_addr)
-						continue;
-				break;
+		case AF_INET:
+			if (rule->subnet_apply) {
+				if (rule->addr.v4.s_addr !=
+				    (ip_addr->v4.s_addr & rule->mask.v4.s_addr))
+					continue;
+			} else
+				if (ip_addr->v4.s_addr != rule->addr.v4.s_addr)
+					continue;
+			break;
 #endif
 #ifdef INET6
-			case AF_INET6:
-				if (rule->subnet_apply) {
-					same_subnet=true;
-					for ( i=0 ; i<16 ; i++ ) 
-						if (rule->addr.v6.s6_addr[i] !=
-						    (ip_addr->v6.s6_addr[i] &
-						    rule->mask.v6.s6_addr[i])) {
-							same_subnet=false;
-							break;
-						}
-					if (!same_subnet)
-						continue;
-				}
-				else
-					if (bcmp(&rule->addr, ip_addr,
-					    sizeof(*ip_addr)))
-						continue;
-				break;
+		case AF_INET6:
+			if (rule->subnet_apply) {
+				same_subnet=true;
+				for (i=0 ; i<16 ; i++)
+					if (rule->addr.v6.s6_addr[i] !=
+					    (ip_addr->v6.s6_addr[i] &
+					    rule->mask.v6.s6_addr[i])) {
+						same_subnet=false;
+						break;
+					}
+				if (!same_subnet)
+					continue;
+			} else
+				if (bcmp(&rule->addr, ip_addr,
+				    sizeof(*ip_addr)))
+					continue;
+			break;
 #endif
-			default:/*dead block, should I keep it?*/
-				error = EINVAL;
 		}
 
 		if (rule->allow)
@@ -428,11 +418,10 @@ ipacl_ip4_check_jail(struct ucred *cred,
 	
 	ip4_addr.v4 = *ia;
 	
-	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;
 
-	/*check with the policy only when it is enforced for ipv4*/
+	/* Checks with the policy only when it is enforced for ipv4. */
 	if (ipacl_ipv4)
 		return rules_check(cred, &ip4_addr, ifp);
 
@@ -447,14 +436,13 @@ ipacl_ip6_check_jail(struct ucred *cred,
 {
 	struct ipacl_addr ip6_addr;
 
-	ip6_addr.v6 = *ia6; /*make copy to not alter the original*/
-	in6_clearscope(&ip6_addr.v6);/* clear scope id*/
+	ip6_addr.v6 = *ia6; /* Make copy to not alter the original. */
+	in6_clearscope(&ip6_addr.v6); /* Clear the scope id. */
 
-	/*function only when requested by a jail*/
 	if (!jailed(cred))
 		return 0;
 	
-	/*check with the policy when it is enforced for ipv6*/
+	/* Checks with the policy when it is enforced for ipv6. */
 	if (ipacl_ipv6)
 		return rules_check(cred, &ip6_addr, ifp);
 

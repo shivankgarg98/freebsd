@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
-# Copyright (c) 2019 Bjoern A. Zeeb <bz@FreeBSD.org>
 #  
 # All rights reserved.
 # This code was developed as a Google Summer of Code 2019 project
@@ -35,9 +34,10 @@
 dir=`dirname $0`
 . ${dir}/ipacl_script.sh
 
-echo "1..32" 
+echo "1..32"
+
 jid1=1
-jid2=3
+jid2=2
 #run this script for epair0a and epair0b as of now
 #use ifconfig epair create to generate epair
 #epair0a = host #epair0b = jail 1
@@ -87,7 +87,7 @@ exec_test fl ipv4 ${if2_jail2} '197.1.123.123' 15 ${jid2}
 exec_test fl ipv4 ${if2_jail2} '198.18.0.12' 15 ${jid2} #last rule disllow the ip in that subnet
 
 # Add more checks on subnet
-sysctl security.mac.ipacl.rules=${jid2}@1@@AF_INET@10.0.0.0@16,${jid2}@1@@AF_INET@10.12.0.0@16
+sysctl security.mac.ipacl.rules=${jid2}@1@@AF_INET@10.0.0.0@16,${jid2}@1@@AF_INET@10.12.0.0@16 >/dev/null
 
 exec_test fl ipv4 ${if2_jail2} '10.1.0.0' 16 ${jid2}
 exec_test ok ipv4 ${if2_jail2} '10.0.10.10' 16 ${jid2}

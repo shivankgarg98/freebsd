@@ -378,7 +378,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 */
 
 #ifdef MAC
-	/*Check if a MAC policy disallows setting the IPv4 address.*/
+	/* Check if a MAC policy disallows setting the IPv4 address. */
 	error = mac_inet_check_SIOCAIFADDR(td->td_ucred,
 	    &addr->sin_addr, ifp);
 	if (error)

@@ -156,7 +156,7 @@ int	mac_ifnet_ioctl_get(struct ucred *cred, struct ifreq *ifr,
 int	mac_ifnet_ioctl_set(struct ucred *cred, struct ifreq *ifr,
 	    struct ifnet *ifp);
 
-/*Checks if the IP address is allowed for the interface.*/
+/* Check if the IP address is allowed for the interface. */
 int	mac_inet_check_SIOCAIFADDR(struct ucred *cred,
 	    const struct in_addr *ia, struct ifnet *ifp);
 int	mac_inet6_check_SIOCAIFADDR(struct ucred *cred,

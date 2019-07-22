@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
-# Copyright (c) 2019 Bjoern A. Zeeb <bz@FreeBSD.org>
 #  
 # All rights reserved.
 # This code was developed as a Google Summer of Code 2019 project
@@ -37,7 +36,7 @@ dir=`dirname $0`
 
 echo "1..36"
 jid1=1
-jid2=3
+jid2=2
 
 if1_host="epair0a"
 if1_jail1="epair0b"
