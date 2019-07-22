@@ -40,6 +40,7 @@
  * sysctl(8) is to be used to modify the rules string in following format-
  * "jail_id@allow@interface@address_family@IP_addr@prefix_length[,jail_id@...]"
  */
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
@@ -139,7 +140,6 @@ static void
 ipacl_init(struct mac_policy_conf *conf)
 {
 
-	printf("TEST this is");
 	mtx_init(&rule_mtx, "rule_mtx", NULL, MTX_DEF);
 	TAILQ_INIT(&rule_head);
 }
