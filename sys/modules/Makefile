@@ -215,6 +215,7 @@ SUBDIR=	\
 	mac_biba \
 	mac_bsdextended \
 	mac_ifoff \
+	mac_ipacl \
 	mac_lomac \
 	mac_mls \
 	mac_none \
