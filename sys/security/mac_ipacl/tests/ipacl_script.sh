@@ -1,9 +1,12 @@
-#
+#!/bin/sh
+
+#-
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
-# 
+#
 # All rights reserved.
+#
 # This code was developed as a Google Summer of Code 2019 project
 # under the guidance of Mr. Bjoern A. Zeeb.
 #
@@ -28,7 +31,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-#!/bin/sh
 # $FreeBSD$
 
 sysctl security.mac.ipacl >/dev/null 2>&1

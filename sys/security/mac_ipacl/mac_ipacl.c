@@ -1,9 +1,12 @@
 /*-
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
  * 
  * All rights reserved.
+ * 
  * This code was developed as a Google Summer of Code 2019 project
  * under the guidance of Mr. Bjoern A. Zeeb.
  *

@@ -1,9 +1,12 @@
-#
+#!/bin/sh
+
+#-
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
-#  
+#
 # All rights reserved.
+#
 # This code was developed as a Google Summer of Code 2019 project
 # under the guidance of Mr. Bjoern A. Zeeb.
 #
@@ -28,7 +31,6 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-#!/bin/sh
 # $FreeBSD$
 
 dir=`dirname $0`
@@ -38,17 +40,16 @@ echo "1..32"
 
 jid1=1
 jid2=2
-#run this script for epair0a and epair0b as of now
-#use ifconfig epair create to generate epair
-#epair0a = host #epair0b = jail 1
-# make sure to create second jail(jid=2) with epair1b
 
-#this script also tests that host remain unaffected in all cases
 if1_host="epair0a"
 if1_jail1="epair0b"
 if2_jail1="lo0"
 if1_jail2="epair1b"
 if2_jail2="lo0"
+
+# This test scripts require user to manually create two jails and bind
+# those jails with VNET interfaces. Update variables defined above with
+# respective value according to your settings.
 
 # Verify effect of changing security.mac.ipacl.ipv4
 sysctl security.mac.ipacl.ipv4=0 >/dev/null
