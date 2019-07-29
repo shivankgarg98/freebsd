@@ -1,14 +1,18 @@
 /*-
- * SPDX-License-Identifier: BSD-2-Clause
- *
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2019 Shivank Garg <shivank@FreeBSD.org>
- * 
- * All rights reserved.
- * 
+ *
+ * This software was developed for the FreeBSD Project by Network
+ * Associates Laboratories, the Security Research Division of Network
+ * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+ * as part of the DARPA CHATS research program.
+ *
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
+ * N66001-04-C-6019 ("SEFOS").
+ *
  * This code was developed as a Google Summer of Code 2019 project
- * under the guidance of Mr. Bjoern A. Zeeb.
+ * under the guidance of Bjoern A. Zeeb.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -35,10 +39,10 @@
  */
 
 /*
- * mac_ipacl allows the root of the host to limit the VNET jail's privileges
- * of setting IPv4 and IPv6 addresses via sysctl(8) interface. So, the host
- * can define rules for jails and their interfaces about IP addresses.
- * 
+ * The IP address access control policy module - mac_ipacl allows the root of
+ * the host to limit the VNET jail's privileges of setting IPv4 and IPv6
+ * addresses via sysctl(8) interface. So, the host can define rules for jails
+ * and their interfaces about IP addresses.
  * sysctl(8) is to be used to modify the rules string in following format-
  * "jail_id@allow@interface@address_family@IP_addr@prefix_length[,jail_id@...]"
  */
