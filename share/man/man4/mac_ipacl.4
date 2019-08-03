@@ -138,12 +138,6 @@ all interfaces.
 It allow IPv6 address in the subnet fc00::/7 but
 deny the subnet fc00::1111:2200/120, and allow individual IP
 fc00::1111:2299 from the denied subnet for all interfaces in the jail 2.
-.Sh TEST SCRIPTS
-Test scripts are not completely automatic :( So, the user has to create
-edit the scripts to enter the jid of the test jails and interface.
-After editing the scripts run make && make install, which then install
-the scripts in /usr/tests/sys/mac/ipacl.
-You may also need to create that directory if it gives an error.
 .Sh LIMITATIONS/PRECAUTIONS
 Rules are checked in the same sequence they are given.
 If many rules are there for an IP address (or a set of IP addresses),
