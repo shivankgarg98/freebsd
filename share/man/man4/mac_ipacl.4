@@ -113,6 +113,8 @@ Prefix length of the subnet to be enforced by the policy.
 -1 implies the policy is enforced for individual IP address.
 For non-negative value, a range of IP address (present in subnet)
 which is calculated as subnet = IP_addr & mask.
+.El
+.El
 .Sh EXAMPLES
 Behavior of the
 .Nm
@@ -138,6 +140,7 @@ all interfaces.
 It allow IPv6 address in the subnet fc00::/7 but
 deny the subnet fc00::1111:2200/120, and allow individual IP
 fc00::1111:2299 from the denied subnet for all interfaces in the jail 2.
+.El
 .Sh LIMITATIONS/PRECAUTIONS
 Rules are checked in the same sequence they are given.
 If many rules are there for an IP address (or a set of IP addresses),
