@@ -91,7 +91,7 @@ ipacl_v4_body()
 	atf_check -s exit:0 -e ignore \
 	    jexec B ifconfig ${epairB}b 203.0.113.241/24 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec B ifconfig ${epairB}b 203.0.112.213/24 up
+	    jexec B ifconfig ${epairC}b 198.18.0.1/24 up
 	atf_check -s not-exit:0 -e ignore \
 	    jexec B ifconfig ${epairB}b 203.0.113.9/24 up
 
@@ -101,7 +101,7 @@ ipacl_v4_body()
 	atf_check -s exit:0 -e ignore \
 	    jexec B ifconfig ${epairC}b 203.0.113.242/24 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec B ifconfig ${epairC}b 203.0.112.213/24 up
+	    jexec B ifconfig ${epairC}b 198.18.0.1/24 up
 	atf_check -s not-exit:0 -e ignore \
 	    jexec B ifconfig ${epairC}b 203.0.113.9/24 up
 
@@ -129,7 +129,7 @@ ipacl_v4_body()
 	atf_check -s not-exit:0 -e ignore \
 	    jexec A ifconfig ${epairA}b 198.51.100.100/24 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b 198.151.100.254/24 up
+	    jexec A ifconfig ${epairA}b 203.0.113.1/24 up
 
 	# Reset rules OID.
 	sysctl security.mac.ipacl.rules=
@@ -166,9 +166,9 @@ ipacl_v6_body()
 	sysctl security.mac.ipacl.ipv6=0
 	
 	atf_check -s exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 2001:2::abcd/24 up
+	    jexec A ifconfig ${epairA}b inet6 2001:2::abcd/48 up
 	atf_check -s exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 001:470:1e01:5ea::11/48 up
+	    jexec A ifconfig ${epairA}b inet6 2001:2::5ea:11/48 up
 
 	# The ipacl policy module is enforced for IPv6 and prevent all
 	# jails from setting their IPv6 address.
@@ -176,9 +176,9 @@ ipacl_v6_body()
 	sysctl security.mac.ipacl.rules=
 	
 	atf_check -s not-exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 2001:2::abcd/24 up
+	    jexec A ifconfig ${epairA}b inet6 2001:2::abcd/48 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 001:470:1e01:5ea::11/48 up
+	    jexec A ifconfig ${epairA}b inet6 2001:2::5ea:11/48 up
 
 	rule="${jidA}@1@${epairA}b@AF_INET6@2001:db8::1111@-1,"
 	rule="${rule}${jidB}@1@${epairB}b@AF_INET6@2001:2::1234:1234@-1,"
@@ -188,9 +188,9 @@ ipacl_v6_body()
 	
 	# Verify if it allows jail to set only certain IPv6 address.
 	atf_check -s exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 2001:db8::1111/16 up
+	    jexec A ifconfig ${epairA}b inet6 2001:db8::1111/64 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec A ifconfig ${epairA}b inet6 2001:db8::1112/16 up
+	    jexec A ifconfig ${epairA}b inet6 2001:db8::1112/64 up
 	atf_check -s exit:0 -e ignore \
 	    jexec B ifconfig ${epairB}b inet6 2001:2::1234:1234/48 up
 	atf_check -s not-exit:0 -e ignore \
@@ -263,7 +263,7 @@ ipacl_v6_body()
 	atf_check -s exit:0 -e ignore jexec A ifconfig \
 	    ${epairA}b inet6 2001:db8:1111:2222:3333:4444:5555:6666/32 up
 	atf_check -s not-exit:0 -e ignore jexec A ifconfig \
-	    ${epairA}b inet6 2000:db9:1111:2222:3333:4444:5555:6666/32 up
+	    ${epairA}b inet6 2001:ab9:1111:2222:3333:4444:5555:6666/32 up
 	atf_check -s not-exit:0 -e ignore jexec A ifconfig \
 	    ${epairA}b inet6 2001:db8::abcd/32 up
 
