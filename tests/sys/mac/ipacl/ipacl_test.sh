@@ -91,7 +91,7 @@ ipacl_v4_body()
 	atf_check -s exit:0 -e ignore \
 	    jexec B ifconfig ${epairB}b 203.0.113.241/24 up
 	atf_check -s not-exit:0 -e ignore \
-	    jexec B ifconfig ${epairC}b 198.18.0.1/24 up
+	    jexec B ifconfig ${epairB}b 198.18.0.1/24 up
 	atf_check -s not-exit:0 -e ignore \
 	    jexec B ifconfig ${epairB}b 203.0.113.9/24 up
 

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2019
+.Dd August 10, 2019
 .Dt MAC_IPACL 4
 .Os
 .Sh NAME
@@ -139,8 +139,10 @@ It allow IPv4 in the subnet 198.51.100.0/24 for jail 2 and
 all interfaces.
 It allow IPv6 address in the subnet fc00::/7 but
 deny the subnet fc00::1111:2200/120, and allow individual IP
-fc00::1111:2299 from the denied subnet for all interfaces in the jail 2.
+fc00::1111:2299 from the denied subnet for all interfaces in jail 2.
 .El
+Please refer to mac/ipacl tests-framework for wide variety of examples on using
+the ipacl module.
 .Sh LIMITATIONS/PRECAUTIONS
 Rules are checked in the same sequence they are given.
 If many rules are there for an IP address (or a set of IP addresses),
