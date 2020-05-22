@@ -75,7 +75,8 @@ extern bool	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
-
+void	 audit_nfsrpc_enter(unsigned short code, struct thread *td);
+void	 audit_nfsrpc_exit(int error, struct thread *td);
 /*
  * The remaining kernel functions are conditionally compiled in as they are
  * wrapped by a macro, and the macro should be the only place in the source
@@ -410,6 +411,22 @@ void	 audit_thread_free(struct thread *td);
 		audit_syscall_exit(error, td);				\
 } while (0)
 
+/*TODO: define a new audit_rpc variable instead of syscall later*/
+#define	AUDIT_NFSRPC_ENTER(code, td)	({				\
+	bool _audit_entered = false;					\
+	if (__predict_false(audit_syscalls_enabled)) {			\
+		audit_nfsrpc_enter(code, td);				\
+		_audit_entered = true;					\
+	}								\
+	_audit_entered;							\
+})
+
+#define	AUDIT_NFSRPC_EXIT(error, td)	do {				\
+	if (AUDITING_TD(td))						\
+		audit_nfsrpc_exit(error, td);				\
+} while (0)
+
+
 /*
  * A Macro to wrap the audit_sysclose() function.
  */
@@ -470,6 +487,9 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
+
+#define AUDIT_NFSRPC_ENTER(code,td)	0
+#define AUDIT_NFSRPC_EXIT(error,td)
 
 #define	AUDIT_SYSCLOSE(p, fd)
 

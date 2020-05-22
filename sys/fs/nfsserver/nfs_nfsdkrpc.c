@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfsserver/nfs_fha_new.h>
 
 #include <security/mac/mac_framework.h>
+#include <security/audit/audit.h>
 
 NFSDLOCKMUTEX;
 NFSV4ROOTLOCKMUTEX;
@@ -335,7 +336,7 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	} else {
 		isdgram = 1;
 	}
-
+	
 	/*
 	 * Two cases:
 	 * 1 - For NFSv2 over UDP, if we are near our malloc/mget
@@ -382,7 +383,10 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (cacherep == RC_DOIT) {
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			nd->nd_xprt = xprt;
+		printf("## nfs_proc: is this appropriate for audit hooks? ##\n");
+		AUDIT_NFSRPC_ENTER(nd->nd_procnum,curthread);
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
+		AUDIT_NFSRPC_EXIT(nd->nd_repstat,curthread);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {
@@ -407,6 +411,7 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (tagstr != NULL && taglen > NFSV4_SMALLSTR)
 		free(tagstr, M_TEMP);
 
+	printf("** nfs exit ***\n");
 	NFSEXITCODE2(0, nd);
 	return (cacherep);
 }

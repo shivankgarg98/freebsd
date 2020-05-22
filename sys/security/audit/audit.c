@@ -732,6 +732,41 @@ audit_syscall_exit(int error, struct thread *td)
 }
 
 void
+audit_nfsrpc_enter(unsigned short code, struct thread *td)
+{
+	int record_needed;
+
+	printf("audit_nfs_rpc_enter\n");
+	/* TODO: check RPC info */
+
+	/* TODO: set event to some appropriate audit event */
+	/* AUDIT EVENT PRESELECTION for RPC: see that information from RPC procedure */
+
+	record_needed = 1; /* do no pre-selection for now */
+	if (record_needed) {
+		td->td_ar = audit_new(AUE_FSTAT, td);
+		if (td->td_ar != NULL) {
+			td->td_pflags |= TDP_AUDITREC;
+		}
+	} else
+		td->td_ar = NULL;
+}
+
+void
+audit_nfsrpc_exit(int error, struct thread *td)
+{
+	int retval;
+	if (error)
+		retval = -1;
+	else
+		retval = td->td_retval[0];
+
+	audit_commit(td->td_ar, error, retval);
+	//td->td_ar = NULL;
+	//td->td_pflags &= ~TDP_AUDITREC;
+}
+
+void
 audit_cred_copy(struct ucred *src, struct ucred *dest)
 {
 

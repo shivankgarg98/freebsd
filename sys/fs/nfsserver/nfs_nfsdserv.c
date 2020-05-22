@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 #include <sys/extattr.h>
 #include <sys/filio.h>
+#include <security/audit/audit.h>
 
 /* Global vars */
 extern u_int32_t newnfs_false, newnfs_true;
@@ -237,6 +238,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 
 	if (nd->nd_repstat)
 		goto out;
+	printf("### NFS GET_ATTR ###\n");
+	AUDIT_ARG_TEXT("NFS SG attr");
+	AUDIT_ARG_PID(1729);
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		if (error) {
@@ -718,7 +722,10 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	nfsquad_t clientid;
 	struct thread *p = curthread;
-
+	
+	printf("*** READ RPC NFS ***\n");
+	AUDIT_ARG_TEXT("NFS_SHIVANK");
+	AUDIT_ARG_FD(1729);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
@@ -1559,7 +1566,9 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	u_long *hashp;
 	fhandle_t fh;
 	struct thread *p = curthread;
-
+	printf("NFS RENAME SERVICE\n");
+	AUDIT_ARG_TEXT("HELLO\n");
+	AUDIT_ARG_CMD(17290);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
 		nfsrv_wcc(nd, tdirfor_ret, &tdirfor, tdiraft_ret, &tdiraft);
@@ -1948,7 +1957,9 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
-
+	printf("NFS CREAT NEW DIR\n");
+	AUDIT_ARG_TEXT("HELLO\n");
+	AUDIT_ARG_CMD(17290);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
