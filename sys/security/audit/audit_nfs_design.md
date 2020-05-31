@@ -30,7 +30,7 @@ When the thread will be servicing the RPC, the desirable RPC arguments can audit
   | nfsrvd_symlink                                               |          |        |
   | nfsrvd_mknod                                                 |          |        |
   | nfsrvd_remove                                                |          |        |
-  | nfsrvd_remove(why is it defined two times in nfsrv3_procs0?) |          |        |
+  | nfsrvd_remove(why is it mentioned 2 times in nfsrv3_procs0?) |          |        |
   | nfsrvd_rename                                                |          |        |
   | nfsrvd_link                                                  |          |        |
   | nfsrvd_readdir                                               |          |        |
@@ -52,9 +52,10 @@ Not Sure.
 
 5. **How would the NFS audit record look like?**
 
-a. HEADER_TOKEN - can we use **Expanded Header Token** here and the Machine Address field to store client info?? See `struct auditinfo_addr` 
-b. some token depending on RPC. for instance, it can describing a file, some attr, or some text, or IP address etc. See bsm_token.c and audit.log(5) for all such possibilty.
-c. subject token
+a. HEADER_TOKEN - can we use **Expanded Header Token** here and the Machine Address field to store client info?? See `struct auditinfo_addr`
+b. information of the subject: some token describing subect info. 
+c. information of the object affected by event. (that is some token describing file)
+c. event-specific information: some token depending on RPC. for instance, it can describing a file, some attr, or some text, or IP address etc. See bsm_token.c and audit.log(5) for all such possibilty.
 d. return token
 
 Can I add a new token(NFS RPC) for the associating the already defined events(AUE_OPEN, etc.) and this wil differentiate the NFS server audit records when a client access the NFS shared dir v/s when some user on server access the NFS shared dir
