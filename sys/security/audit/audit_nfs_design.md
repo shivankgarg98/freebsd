@@ -48,7 +48,7 @@ The `praudit`has to be modified accordingly to able to interpret the new additio
 
 4. **Do we need to define new audit event type, audit token for this new support? or Use currently defined?**
 
-Not Sure.
+We will need to create new AUE_ events for each NFS RPC, since there is no 1:1 relationship between syscalls and RPCs.
 
 5. **How would the NFS audit record look like?**
 
@@ -67,7 +67,9 @@ Is there some other way?
 #### Doubts while deploying the above design-
 
 1. The audit record info is maintained by the thread structure. The thread may already be maintaining the audit records from the syscalls. I doubt when using this from NFS, it may interfare with syscall audit and show unexpected behaviour. For instance, failing of `KASSERT(td->td_ar == NULL, ("audit_syscall_enter: td->td_ar != NULL"))` if it is called in the `audit_nfsrpc_enter`.
-2. how to use AUDIT_ARG_TEXT wrapper to record text?
+
+>>> "The NFS server runs almost entirely within the kernel, but there is still a process associated with it.  That process spends almost all of its time within nfssvc(2).  As you have probably discovered, it generates its own audit record for that syscall (AUE_NFS_SVC, I think).  Your RPC-based audit records must be separate; you can't use the td_ar field of struct thread.  You'll have to find someplace else to store the RPC's audit record, and call audit_commit yourself."
+This also means, unfortunately, that you can't use the AUDIT_ARG_ macros, since those call curthread.  You'll either have to modify those macros, or create substitutes for them.
 
 
 #### References and Study material
