@@ -239,8 +239,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	if (nd->nd_repstat)
 		goto out;
 	printf("### NFS GET_ATTR ###\n");
-	AUDIT_ARG_TEXT("NFS SG attr");
-	AUDIT_ARG_PID(1729);
+	AUDIT_NFSARG_TEXT(nd, "NFS_SHIVANK_GETATTR");
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		if (error) {
@@ -284,6 +285,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				    NFSACCCHK_VPISLOCKED, NULL);
 		}
 	}
+	AUDIT_NFSARG_VALUE(nd, nd->nd_repstat);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, &attrbits);
 	if (!nd->nd_repstat) {
@@ -724,8 +726,10 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	struct thread *p = curthread;
 	
 	printf("*** READ RPC NFS ***\n");
-	AUDIT_ARG_TEXT("NFS_SHIVANK");
-	AUDIT_ARG_FD(1729);
+	AUDIT_NFSARG_TEXT(nd,"NFS_SHIVANK_READ");
+	AUDIT_NFSARG_VNODE1(nd,vp);
+
+
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
@@ -1567,8 +1571,6 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	fhandle_t fh;
 	struct thread *p = curthread;
 	printf("NFS RENAME SERVICE\n");
-	AUDIT_ARG_TEXT("HELLO\n");
-	AUDIT_ARG_CMD(17290);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
 		nfsrv_wcc(nd, tdirfor_ret, &tdirfor, tdiraft_ret, &tdiraft);
@@ -1958,8 +1960,6 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	u_long *hashp;
 	struct thread *p = curthread;
 	printf("NFS CREAT NEW DIR\n");
-	AUDIT_ARG_TEXT("HELLO\n");
-	AUDIT_ARG_CMD(17290);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;

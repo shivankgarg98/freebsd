@@ -384,9 +384,9 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			nd->nd_xprt = xprt;
 		printf("## nfs_proc: is this appropriate for audit hooks? ##\n");
-		AUDIT_NFSRPC_ENTER(nd->nd_procnum,curthread);
+		AUDIT_NFSRPC_ENTER(nd,curthread);
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
-		AUDIT_NFSRPC_EXIT(nd->nd_repstat,curthread);
+		AUDIT_NFSRPC_EXIT(nd,curthread);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {

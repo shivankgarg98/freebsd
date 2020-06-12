@@ -54,6 +54,9 @@
 #include <sys/file.h>
 #include <sys/sysctl.h>
 
+#include <fs/nfs/nfsport.h>
+#include <fs/nfs/nfs.h>
+
 /*
  * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
  * removed automatically as a result of configuring log files, and can be
@@ -75,8 +78,9 @@ extern bool	audit_syscalls_enabled;
 
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
-void	 audit_nfsrpc_enter(unsigned short code, struct thread *td);
-void	 audit_nfsrpc_exit(int error, struct thread *td);
+
+void	 audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td);
+void	 audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td);
 /*
  * The remaining kernel functions are conditionally compiled in as they are
  * wrapped by a macro, and the macro should be the only place in the source
@@ -151,6 +155,11 @@ void	 audit_proc_coredump(struct thread *td, char *path, int errcode);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
+void audit_nfsarg_fd(struct kaudit_record *ar, int fd);
+void audit_nfsarg_value(struct kaudit_record *ar, long value);
+void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
+void audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp);
+void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_syscalls_enabled flag before performing the actual call.
@@ -412,20 +421,47 @@ void	 audit_thread_free(struct thread *td);
 } while (0)
 
 /*TODO: define a new audit_rpc variable instead of syscall later*/
-#define	AUDIT_NFSRPC_ENTER(code, td)	({				\
+
+#define	AUDITING_NFS(nd)	(__predict_false((nd)->nd_flag & ND_AUDITREC))
+
+#define	AUDIT_NFSARG_FD(nd, fd) do {					\
+	if (AUDITING_NFS(nd)	)					\
+		audit_nfsarg_fd((nd)->nd_ar, (fd));				\
+} while (0)
+
+#define	AUDIT_NFSARG_VALUE(nd, value) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_value((nd)->nd_ar, (value));			\
+} while (0)
+
+#define	AUDIT_NFSARG_VNODE1(nd, vp) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_vnode1((nd)->nd_ar, (vp));			\
+} while (0)
+
+#define	AUDIT_NFSARG_FILE(nd, p, fp) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_file((nd)->nd_ar, (p), (fp));			\
+} while (0)
+
+#define	AUDIT_NFSARG_TEXT(nd, text) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_text((nd)->nd_ar, (text));			\
+} while (0)
+
+#define	AUDIT_NFSRPC_ENTER(nd, td)	({				\
 	bool _audit_entered = false;					\
 	if (__predict_false(audit_syscalls_enabled)) {			\
-		audit_nfsrpc_enter(code, td);				\
+		audit_nfsrpc_enter(nd, td);				\
 		_audit_entered = true;					\
 	}								\
 	_audit_entered;							\
 })
 
-#define	AUDIT_NFSRPC_EXIT(error, td)	do {				\
-	if (AUDITING_TD(td))						\
-		audit_nfsrpc_exit(error, td);				\
+#define	AUDIT_NFSRPC_EXIT(nd, td)	do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsrpc_exit(nd, td);				\
 } while (0)
-
 
 /*
  * A Macro to wrap the audit_sysclose() function.
@@ -488,8 +524,14 @@ void	 audit_thread_free(struct thread *td);
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
-#define AUDIT_NFSRPC_ENTER(code,td)	0
-#define AUDIT_NFSRPC_EXIT(error,td)
+#define	AUDIT_NFSARG_FD(nd, fd)
+#define	AUDIT_NFSARG_VALUE(nd, value)
+#define	AUDIT_NFSARG_VNODE1(nd, vp)
+#define	AUDIT_NFSARG_FILE(nd, p, fp)
+#define	AUDIT_NFSARG_TEXT(nd, text)
+
+#define AUDIT_NFSRPC_ENTER(code,td, nd)	0
+#define AUDIT_NFSRPC_EXIT(error,td, nd)
 
 #define	AUDIT_SYSCLOSE(p, fd)
 

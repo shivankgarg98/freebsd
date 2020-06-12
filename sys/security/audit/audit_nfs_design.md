@@ -30,7 +30,7 @@ When the thread will be servicing the RPC, the desirable RPC arguments can audit
   | nfsrvd_symlink                                               |          |        |
   | nfsrvd_mknod                                                 |          |        |
   | nfsrvd_remove                                                |          |        |
-  | nfsrvd_remove(why is it mentioned 2 times in nfsrv3_procs0?) |          |        |
+  | nfsrvd_rmdir                                                 |          |        |
   | nfsrvd_rename                                                |          |        |
   | nfsrvd_link                                                  |          |        |
   | nfsrvd_readdir                                               |          |        |

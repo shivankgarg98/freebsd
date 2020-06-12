@@ -1019,3 +1019,114 @@ audit_sysclose(struct thread *td, int fd)
 	VOP_UNLOCK(vp);
 	fdrop(fp, td);
 }
+
+/* NFS RPC related audit args */
+
+void
+audit_nfsarg_fd(struct kaudit_record *ar, int fd)
+{
+	
+	if(ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_fd = fd;
+	ARG_SET_VALID(ar, ARG_FD);
+}
+
+void
+audit_nfsarg_value(struct kaudit_record *ar, long value)
+{
+	
+	if(ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_value = value;
+	ARG_SET_VALID(ar,ARG_VALUE);
+}
+void
+audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
+{
+	int error;
+
+	if (ar == NULL)
+		return;
+
+	ARG_CLEAR_VALID(ar, ARG_VNODE1);
+	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
+	if (error == 0)
+		ARG_SET_VALID(ar, ARG_VNODE1);
+}
+void
+audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp)
+{
+	struct socket *so;
+	struct inpcb *pcb;
+	struct vnode *vp;
+
+	if (ar == NULL)
+		return;
+
+	switch (fp->f_type) {
+	/* Do we need first two case for NFS */
+	//case DTYPE_VNODE:
+	//case DTYPE_FIFO:
+	//	/*
+	//	 * XXXAUDIT: Only possibly to record as first vnode?
+	//	 */
+	//	vp = fp->f_vnode;
+	//	vn_lock(vp, LK_SHARED | LK_RETRY);
+	//	audit_arg_vnode1(vp);
+	//	VOP_UNLOCK(vp);
+	//	break;
+
+	case DTYPE_SOCKET:
+		so = (struct socket *)fp->f_data;
+		if (INP_CHECK_SOCKAF(so, PF_INET)) {
+			SOCK_LOCK(so);
+			ar->k_ar.ar_arg_sockinfo.so_type =
+			    so->so_type;
+			ar->k_ar.ar_arg_sockinfo.so_domain =
+			    INP_SOCKAF(so);
+			ar->k_ar.ar_arg_sockinfo.so_protocol =
+			    so->so_proto->pr_protocol;
+			SOCK_UNLOCK(so);
+			pcb = (struct inpcb *)so->so_pcb;
+			INP_RLOCK(pcb);
+			ar->k_ar.ar_arg_sockinfo.so_raddr =
+			    pcb->inp_faddr.s_addr;
+			ar->k_ar.ar_arg_sockinfo.so_laddr =
+			    pcb->inp_laddr.s_addr;
+			ar->k_ar.ar_arg_sockinfo.so_rport =
+			    pcb->inp_fport;
+			ar->k_ar.ar_arg_sockinfo.so_lport =
+			    pcb->inp_lport;
+			INP_RUNLOCK(pcb);
+			ARG_SET_VALID(ar, ARG_SOCKINFO);
+		}
+		break;
+
+	default:
+		/* XXXAUDIT: else? */
+		break;
+	}
+}
+
+void
+audit_nfsarg_text(struct kaudit_record *ar, const char *text)
+{
+
+	KASSERT(text != NULL, ("audit_arg_text: text == NULL"));
+
+	if (ar == NULL)
+		return;
+
+	/* Invalidate the text string */
+	ar->k_ar.ar_valid_arg &= (ARG_ALL ^ ARG_TEXT);
+
+	if (ar->k_ar.ar_arg_text == NULL)
+		ar->k_ar.ar_arg_text = malloc(MAXPATHLEN, M_AUDITTEXT,
+		    M_WAITOK);
+
+	strncpy(ar->k_ar.ar_arg_text, text, MAXPATHLEN);
+	ARG_SET_VALID(ar, ARG_TEXT);
+}

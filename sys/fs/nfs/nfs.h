@@ -670,6 +670,7 @@ struct nfsrv_descript {
 	nfsv4stateid_t		nd_savedcurstateid; /* Saved Current StateID */
 	uint32_t		nd_maxreq;	/* Max. request (session). */
 	uint32_t		nd_maxresp;	/* Max. reply (session). */
+	struct kaudit_record	*nd_ar;	/* Audit record for NFS server */
 };
 
 #define	nd_princlen	nd_gssnamelen
@@ -711,6 +712,7 @@ struct nfsrv_descript {
 #define	ND_SAVEDCURSTATEID	0x100000000
 #define	ND_HASSLOTID		0x200000000
 #define	ND_NFSV42		0x400000000
+#define ND_AUDITREC		0x800000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.

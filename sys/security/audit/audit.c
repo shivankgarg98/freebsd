@@ -732,38 +732,41 @@ audit_syscall_exit(int error, struct thread *td)
 }
 
 void
-audit_nfsrpc_enter(unsigned short code, struct thread *td)
+audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 {
 	int record_needed;
-
-	printf("audit_nfs_rpc_enter\n");
+	au_event_t event;
+	
+	printf("audit_nfspc_enter\n");
 	/* TODO: check RPC info */
 
 	/* TODO: set event to some appropriate audit event */
-	/* AUDIT EVENT PRESELECTION for RPC: see that information from RPC procedure */
-
+	/* AUDIT EVENT PRESELECTION based on RPC #: see that information from RPC procedure */
+	
+	event = 43265 + nd->nd_procnum; /*simple linear mapping*/
+	
 	record_needed = 1; /* do no pre-selection for now */
 	if (record_needed) {
-		td->td_ar = audit_new(AUE_FSTAT, td);
-		if (td->td_ar != NULL) {
-			td->td_pflags |= TDP_AUDITREC;
-		}
+		nd->nd_ar = audit_new(event, td);
+		if (nd->nd_ar != NULL)
+			nd->nd_flag |= ND_AUDITREC;
 	} else
-		td->td_ar = NULL;
+		nd->nd_ar = NULL;
 }
 
 void
-audit_nfsrpc_exit(int error, struct thread *td)
+audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)
 {
 	int retval;
+	printf("audit_nfsrpc_exit\n");
 	if (error)
 		retval = -1;
 	else
-		retval = td->td_retval[0];
+		retval = nd->nd_errp[0];/*pointer to ret status. How to use it correctly?*/
 
-	audit_commit(td->td_ar, error, retval);
-	//td->td_ar = NULL;
-	//td->td_pflags &= ~TDP_AUDITREC;
+	audit_commit(nd->nd_ar, error, retval);
+	nd->nd_ar = NULL;
+	nd->nd_flag &= ~ND_AUDITREC;
 }
 
 void
