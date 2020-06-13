@@ -132,6 +132,8 @@ struct ieee80211_rx_ampdu;
 struct ieee80211_superg;
 struct ieee80211_frame;
 
+struct net80211dump_methods;
+
 struct ieee80211com {
 	void			*ic_softc;	/* driver softc */
 	const char		*ic_name;	/* usually device name */
@@ -370,6 +372,7 @@ struct ieee80211com {
 	/* The channel width has changed (20<->2040) */
 	void			(*ic_update_chw)(struct ieee80211com *);
 
+	const struct debugnet80211_methods	*ic_debugnet_meth;
 	uint64_t		ic_spare[7];
 };
 
@@ -562,6 +565,10 @@ struct ieee80211vap {
 	int			(*iv_wme_update)(struct ieee80211vap *,
 				    const struct wmeParams *wme_params);
 	struct task		iv_wme_task;	/* deferred VAP WME update */
+
+	/* update device state for 802.11 slot time change */
+	void			(*iv_updateslot)(struct ieee80211vap *);
+	struct task		iv_slot_task;	/* deferred slot time update */
 
 	uint64_t		iv_spare[6];
 };

@@ -202,6 +202,8 @@ struct tcpcb {
 
 	tcp_seq	t_rtseq;		/* sequence number being timed */
 	u_int	t_starttime;		/* time connection was established */
+	u_int	t_fbyte_in;		/* ticks time when first byte queued in */
+	u_int	t_fbyte_out;		/* ticks time when first byte queued out */
 
 	u_int	t_pmtud_saved_maxseg;	/* pre-blackhole MSS */
 	int	t_blackhole_enter;	/* when to enter blackhole detection */
@@ -345,6 +347,7 @@ struct tcp_function_block {
 	void	(*tfb_tcp_rexmit_tmr)(struct tcpcb *);
 	int	(*tfb_tcp_handoff_ok)(struct tcpcb *);
 	void	(*tfb_tcp_mtu_chg)(struct tcpcb *);
+	int	(*tfb_pru_options)(struct tcpcb *, int);
 	volatile uint32_t tfb_refcnt;
 	uint32_t  tfb_flags;
 	uint8_t	tfb_id;
@@ -433,7 +436,7 @@ TAILQ_HEAD(tcp_funchead, tcp_function);
 #define	TF2_ECN_SND_CWR		0x00000040 /* ECN CWR in queue */
 #define	TF2_ECN_SND_ECE		0x00000080 /* ECN ECE in queue */
 #define	TF2_ACE_PERMIT		0x00000100 /* Accurate ECN mode */
-
+#define TF2_FBYTES_COMPLETE	0x00000400 /* We have first bytes in and out */
 /*
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.

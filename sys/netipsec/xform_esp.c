@@ -37,6 +37,7 @@
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -80,6 +81,8 @@
 #include <opencrypto/xform.h>
 
 VNET_DEFINE(int, esp_enable) = 1;
+VNET_DEFINE_STATIC(int, esp_ctr_compatibility) = 1;
+#define V_esp_ctr_compatibility VNET(esp_ctr_compatibility)
 VNET_PCPUSTAT_DEFINE(struct espstat, espstat);
 VNET_PCPUSTAT_SYSINIT(espstat);
 
@@ -90,11 +93,12 @@ VNET_PCPUSTAT_SYSUNINIT(espstat);
 SYSCTL_DECL(_net_inet_esp);
 SYSCTL_INT(_net_inet_esp, OID_AUTO, esp_enable,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(esp_enable), 0, "");
+SYSCTL_INT(_net_inet_esp, OID_AUTO, ctr_compatibility,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(esp_ctr_compatibility), 0,
+    "Align AES-CTR encrypted transmitted frames to blocksize");
 SYSCTL_VNET_PCPUSTAT(_net_inet_esp, IPSECCTL_STATS, stats,
     struct espstat, espstat,
     "ESP statistics (struct espstat, netipsec/esp_var.h");
-
-static struct timeval deswarn, blfwarn, castwarn, camelliawarn, tdeswarn;
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -157,29 +161,6 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 		DPRINTF(("%s: 4-byte IV not supported with protocol\n",
 			__func__));
 		return EINVAL;
-	}
-
-	switch (sav->alg_enc) {
-	case SADB_EALG_DESCBC:
-		if (ratecheck(&deswarn, &ipsec_warn_interval))
-			gone_in(13, "DES cipher for IPsec");
-		break;
-	case SADB_EALG_3DESCBC:
-		if (ratecheck(&tdeswarn, &ipsec_warn_interval))
-			gone_in(13, "3DES cipher for IPsec");
-		break;
-	case SADB_X_EALG_BLOWFISHCBC:
-		if (ratecheck(&blfwarn, &ipsec_warn_interval))
-			gone_in(13, "Blowfish cipher for IPsec");
-		break;
-	case SADB_X_EALG_CAST128CBC:
-		if (ratecheck(&castwarn, &ipsec_warn_interval))
-			gone_in(13, "CAST cipher for IPsec");
-		break;
-	case SADB_X_EALG_CAMELLIACBC:
-		if (ratecheck(&camelliawarn, &ipsec_warn_interval))
-			gone_in(13, "Camellia cipher for IPsec");
-		break;
 	}
 
 	/* subtract off the salt, RFC4106, 8.1 and RFC3686, 5.1 */
@@ -245,9 +226,11 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 
 	/* Initialize crypto session. */
 	csp.csp_cipher_alg = sav->tdb_encalgxform->type;
-	csp.csp_cipher_key = sav->key_enc->key_data;
-	csp.csp_cipher_klen = _KEYBITS(sav->key_enc) / 8 -
-	    SAV_ISCTRORGCM(sav) * 4;
+	if (csp.csp_cipher_alg != CRYPTO_NULL_CBC) {
+		csp.csp_cipher_key = sav->key_enc->key_data;
+		csp.csp_cipher_klen = _KEYBITS(sav->key_enc) / 8 -
+		    SAV_ISCTRORGCM(sav) * 4;
+	};
 	csp.csp_ivlen = txform->ivsize;
 
 	error = crypto_newsession(&sav->tdb_cryptoid, &csp, V_crypto_support);
@@ -389,12 +372,10 @@ esp_input(struct mbuf *m, struct secasvar *sav, int skip, int protoff)
 	}
 
 	/* Crypto operation descriptor */
-	crp->crp_ilen = m->m_pkthdr.len; /* Total input length */
 	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_mbuf = m;
-	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_input_cb;
 	crp->crp_opaque = xd;
 
@@ -469,7 +450,7 @@ esp_input_cb(struct cryptop *crp)
 	crypto_session_t cryptoid;
 	int hlen, skip, protoff, error, alen;
 
-	m = crp->crp_mbuf;
+	m = crp->crp_buf.cb_mbuf;
 	xd = crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
 	sav = xd->sav;
@@ -677,8 +658,14 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	rlen = m->m_pkthdr.len - skip;	/* Raw payload length. */
 	/*
 	 * RFC4303 2.4 Requires 4 byte alignment.
+	 * Old versions of FreeBSD can't decrypt partial blocks encrypted
+	 * with AES-CTR. Align payload to native_blocksize (16 bytes)
+	 * in order to preserve compatibility.
 	 */
-	blks = MAX(4, espx->blocksize);		/* Cipher blocksize */
+	if (SAV_ISCTR(sav) && V_esp_ctr_compatibility)
+		blks = MAX(4, espx->native_blocksize);	/* Cipher blocksize */
+	else
+		blks = MAX(4, espx->blocksize);
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
@@ -863,12 +850,10 @@ esp_output(struct mbuf *m, struct secpolicy *sp, struct secasvar *sav,
 	xd->vnet = curvnet;
 
 	/* Crypto operation descriptor. */
-	crp->crp_ilen = m->m_pkthdr.len; /* Total input length. */
 	crp->crp_flags |= CRYPTO_F_CBIFSYNC;
 	if (V_async_crypto)
 		crp->crp_flags |= CRYPTO_F_ASYNC | CRYPTO_F_ASYNC_KEEPORDER;
-	crp->crp_mbuf = m;
-	crp->crp_buf_type = CRYPTO_BUF_MBUF;
+	crypto_use_mbuf(crp, m);
 	crp->crp_callback = esp_output_cb;
 	crp->crp_opaque = xd;
 
@@ -907,7 +892,7 @@ esp_output_cb(struct cryptop *crp)
 
 	xd = (struct xform_data *) crp->crp_opaque;
 	CURVNET_SET(xd->vnet);
-	m = (struct mbuf *) crp->crp_buf;
+	m = crp->crp_buf.cb_mbuf;
 	sp = xd->sp;
 	sav = xd->sav;
 	idx = xd->idx;

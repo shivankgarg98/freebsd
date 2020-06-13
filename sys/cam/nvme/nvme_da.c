@@ -185,11 +185,14 @@ static int nda_send_ordered = NDA_DEFAULT_SEND_ORDERED;
 static int nda_default_timeout = NDA_DEFAULT_TIMEOUT;
 static int nda_max_trim_entries = NDA_MAX_TRIM_ENTRIES;
 static int nda_enable_biospeedup = 1;
+static int nda_nvd_compat = 1;
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, max_trim, CTLFLAG_RDTUN,
     &nda_max_trim_entries, NDA_MAX_TRIM_ENTRIES,
     "Maximum number of BIO_DELETE to send down as a DSM TRIM.");
 SYSCTL_INT(_kern_cam_nda, OID_AUTO, enable_biospeedup, CTLFLAG_RDTUN,
-    &nda_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing");
+    &nda_enable_biospeedup, 0, "Enable BIO_SPEEDUP processing.");
+SYSCTL_INT(_kern_cam_nda, OID_AUTO, nvd_compat, CTLFLAG_RDTUN,
+    &nda_nvd_compat, 1, "Enable creation of nvd aliases.");
 
 /*
  * All NVMe media is non-rotational, so all nvme device instances
@@ -402,7 +405,7 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		struct nvme_pt_command *pt;
 		union ccb *ccb;
 		struct cam_periph_map_info mapinfo;
-		u_int maxmap = MAXPHYS;	/* XXX is this right */
+		u_int maxmap = dp->d_maxsize;
 		int error;
 
 		/*
@@ -427,24 +430,25 @@ ndaioctl(struct disk *dp, u_long cmd, void *data, int fflag,
 		memset(&mapinfo, 0, sizeof(mapinfo));
 		error = cam_periph_mapmem(ccb, &mapinfo, maxmap);
 		if (error)
-			return (error);
+			goto out;
 
 		/*
-		 * Lock the periph and run the command. XXX do we need
-		 * to lock the periph?
+		 * Lock the periph and run the command.
 		 */
 		cam_periph_lock(periph);
-		cam_periph_runccb(ccb, NULL, CAM_RETRY_SELTO, SF_RETRY_UA | SF_NO_PRINT,
-		    NULL);
-		cam_periph_unlock(periph);
+		cam_periph_runccb(ccb, NULL, CAM_RETRY_SELTO,
+		    SF_RETRY_UA | SF_NO_PRINT, NULL);
 
 		/*
 		 * Tear down mapping and return status.
 		 */
+		cam_periph_unlock(periph);
 		cam_periph_unmapmem(ccb, &mapinfo);
-		cam_periph_lock(periph);
 		error = (ccb->ccb_h.status == CAM_REQ_CMP) ? 0 : EIO;
+out:
+		cam_periph_lock(periph);
 		xpt_release_ccb(ccb);
+		cam_periph_unlock(periph);
 		return (error);
 	}
 	default:
@@ -949,7 +953,8 @@ ndaregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Add alias for older nvd drives to ease transition.
 	 */
-	/* disk_add_alias(disk, "nvd"); Have reports of this causing problems */
+	if (nda_nvd_compat)
+		disk_add_alias(disk, "nvd");
 
 	/*
 	 * Acquire a reference to the periph before we register with GEOM.
@@ -1081,6 +1086,7 @@ ndastart(struct cam_periph *periph, union ccb *start_ccb)
 			TAILQ_INIT(&trim->bps);
 			bp1 = bp;
 			ents = min(nitems(trim->dsm), nda_max_trim_entries);
+			ents = max(ents, 1);
 			dsm_range = trim->dsm;
 			dsm_end = dsm_range + ents;
 			do {

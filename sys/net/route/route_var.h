@@ -35,6 +35,9 @@
 #ifndef RNF_NORMAL
 #include <net/radix.h>
 #endif
+#include <sys/ck.h>
+#include <sys/epoch.h>
+#include <netinet/in.h>		/* struct sockaddr_in */
 #include <sys/counter.h>
 
 struct nh_control;
@@ -49,7 +52,6 @@ struct rib_head {
 	rn_lookup_f_t		*rnh_lookup;	/* exact match for sockaddr */
 	rn_walktree_t		*rnh_walktree;	/* traverse tree */
 	rn_walktree_from_t	*rnh_walktree_from; /* traverse tree below a */
-	rn_close_t		*rnh_close;	/*do something when the last ref drops*/
 	rnh_preadd_entry_f_t	*rnh_preadd;	/* hook to alter record prior to insertion */
 	rt_gen_t		rnh_gen;	/* generation counter */
 	int			rnh_multipath;	/* multipath capable ? */
@@ -62,6 +64,7 @@ struct rib_head {
 	struct callout		expire_callout;	/* Callout for expiring dynamic routes */
 	time_t			next_expire;	/* Next expire run ts */
 	struct nh_control	*nh_control;	/* nexthop subsystem data */
+	CK_STAILQ_HEAD(, rib_subscription)	rnh_subscribers;/* notification subscribers */
 };
 
 #define	RIB_RLOCK_TRACKER	struct rm_priotracker _rib_tracker
@@ -73,6 +76,9 @@ struct rib_head {
 #define	RIB_WUNLOCK(rh)		rm_wunlock(&(rh)->rib_lock)
 #define	RIB_LOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_LOCKED)
 #define	RIB_WLOCK_ASSERT(rh)	rm_assert(&(rh)->rib_lock, RA_WLOCKED)
+
+/* Constants */
+#define	RIB_MAX_RETRIES	3
 
 /* Macro for verifying fields in af-specific 'struct route' structures */
 #define CHK_STRUCT_FIELD_GENERIC(_s1, _f1, _s2, _f2)			\
@@ -100,11 +106,37 @@ _Static_assert(__offsetof(struct route, ro_dst) == __offsetof(_ro_new, _dst_new)
 
 struct rib_head *rt_tables_get_rnh(int fib, int family);
 void rt_mpath_init_rnh(struct rib_head *rnh);
+int rt_getifa_fib(struct rt_addrinfo *info, u_int fibnum);
+void rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt);
+#ifdef RADIX_MPATH
+struct radix_node *rt_mpath_unlink(struct rib_head *rnh,
+    struct rt_addrinfo *info, struct rtentry *rto, int *perror);
+#endif
+struct rib_cmd_info;
+int add_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+int del_route(struct rib_head *rnh, struct rt_addrinfo *info,
+    struct rib_cmd_info *rc);
+int change_route(struct rib_head *, struct rt_addrinfo *,
+    struct rib_cmd_info *rc);
 
 VNET_PCPUSTAT_DECLARE(struct rtstat, rtstat);
 #define	RTSTAT_ADD(name, val)	\
 	VNET_PCPUSTAT_ADD(struct rtstat, rtstat, name, (val))
 #define	RTSTAT_INC(name)	RTSTAT_ADD(name, 1)
+
+
+/*
+ * Convert a 'struct radix_node *' to a 'struct rtentry *'.
+ * The operation can be done safely (in this code) because a
+ * 'struct rtentry' starts with two 'struct radix_node''s, the first
+ * one representing leaf nodes in the routing tree, which is
+ * what the code in radix.c passes us as a 'struct radix_node'.
+ *
+ * But because there are a lot of assumptions in this conversion,
+ * do not cast explicitly, but always use the macro below.
+ */
+#define RNTORT(p)	((struct rtentry *)(p))
 
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
@@ -117,20 +149,34 @@ struct rtentry {
 #define	rt_mask(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_mask)))
 #define	rt_key_const(r)		(*((const struct sockaddr * const *)(&(r)->rt_nodes->rn_key)))
 #define	rt_mask_const(r)	(*((const struct sockaddr * const *)(&(r)->rt_nodes->rn_mask)))
-	struct	sockaddr *rt_gateway;	/* value */
-	struct	ifnet *rt_ifp;		/* the answer: interface to use */
-	struct	ifaddr *rt_ifa;		/* the answer: interface address to use */
+
+	/*
+	 * 2 radix_node structurs above consists of 2x6 pointers, leaving
+	 * 4 pointers (32 bytes) of the second cache line on amd64.
+	 *
+	 */
 	struct nhop_object	*rt_nhop;	/* nexthop data */
+	union {
+		/*
+		 * Destination address storage.
+		 * sizeof(struct sockaddr_in6) == 28, however
+		 * the dataplane-relevant part (e.g. address) lies
+		 * at offset 8..24, making the address not crossing
+		 * cacheline boundary.
+		 */
+		struct sockaddr_in	rt_dst4;
+		struct sockaddr_in6	rt_dst6;
+		struct sockaddr		rt_dst;
+		char			rt_dstb[28];
+	};
+
 	int		rt_flags;	/* up/down?, host/net */
-	int		rt_refcnt;	/* # held references */
-	u_int		rt_fibnum;	/* which FIB */
-	u_long		rt_mtu;		/* MTU for this path */
 	u_long		rt_weight;	/* absolute weight */ 
 	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
-#define	rt_endzero	rt_pksent
-	counter_u64_t	rt_pksent;	/* packets sent using this route */
+#define	rt_endzero	rt_mtx
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 	struct rtentry	*rt_chain;	/* pointer to next rtentry to delete */
+	struct epoch_context	rt_epoch_ctx;	/* net epoch tracker */
 };
 
 #define	RT_LOCK_INIT(_rt) \
@@ -142,36 +188,6 @@ struct rtentry {
 #define	RT_UNLOCK_COND(_rt)	do {				\
 	if (mtx_owned(&(_rt)->rt_mtx))				\
 		mtx_unlock(&(_rt)->rt_mtx);			\
-} while (0)
-
-#define	RT_ADDREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt >= 0,				\
-		("negative refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt++;					\
-} while (0)
-
-#define	RT_REMREF(_rt)	do {					\
-	RT_LOCK_ASSERT(_rt);					\
-	KASSERT((_rt)->rt_refcnt > 0,				\
-		("bogus refcnt %d", (_rt)->rt_refcnt));	\
-	(_rt)->rt_refcnt--;					\
-} while (0)
-
-#define	RTFREE_LOCKED(_rt) do {					\
-	if ((_rt)->rt_refcnt <= 1)				\
-		rtfree(_rt);					\
-	else {							\
-		RT_REMREF(_rt);					\
-		RT_UNLOCK(_rt);					\
-	}							\
-	/* guard against invalid refs */			\
-	_rt = 0;						\
-} while (0)
-
-#define	RTFREE(_rt) do {					\
-	RT_LOCK(_rt);						\
-	RTFREE_LOCKED(_rt);					\
 } while (0)
 
 /*

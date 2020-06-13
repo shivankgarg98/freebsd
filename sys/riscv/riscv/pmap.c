@@ -563,8 +563,6 @@ pmap_bootstrap(vm_offset_t l1pt, vm_paddr_t kernstart, vm_size_t kernlen)
 	int i;
 
 	printf("pmap_bootstrap %lx %lx %lx\n", l1pt, kernstart, kernlen);
-	printf("%lx\n", l1pt);
-	printf("%lx\n", (KERNBASE >> L1_SHIFT) & Ln_ADDR_MASK);
 
 	/* Set this early so we can use the pagetable walking functions */
 	kernel_pmap_store.pm_l1 = (pd_entry_t *)l1pt;
@@ -2329,6 +2327,7 @@ retryl2:
 				if (!atomic_fcmpset_long(l2, &l2e, l2e & ~mask))
 					goto retryl2;
 				anychanged = true;
+				continue;
 			} else {
 				if (!pv_lists_locked) {
 					pv_lists_locked = true;

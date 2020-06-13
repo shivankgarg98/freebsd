@@ -332,8 +332,6 @@ struct rt_addrinfo {
 #define RT_LINK_IS_UP(ifp)	(!((ifp)->if_capabilities & IFCAP_LINKSTATE) \
 				 || (ifp)->if_link_state == LINK_STATE_UP)
 
-#define	RTFREE_FUNC(_rt)	rtfree_func(_rt)
-
 #define	RO_NHFREE(_ro) do {					\
 	if ((_ro)->ro_nh) {					\
 		NH_FREE((_ro)->ro_nh);				\
@@ -378,7 +376,6 @@ int	 rt_addrmsg(int, struct ifaddr *, int);
 int	 rt_routemsg(int, struct rtentry *, struct ifnet *ifp, int, int);
 int	 rt_routemsg_info(int, struct rt_addrinfo *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
-int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
 struct rib_head *rt_table_init(int, int, u_int);
 void	rt_table_destroy(struct rib_head *);
@@ -393,8 +390,6 @@ struct sockaddr *rtsock_fix_netmask(const struct sockaddr *dst,
 /*
  * Note the following locking behavior:
  *
- *    rtalloc1() returns a locked rtentry
- *
  *    rtfree() and RTFREE_LOCKED() require a locked rtentry
  *
  *    RTFREE() uses an unlocked entry.
@@ -404,25 +399,17 @@ void	 rtfree(struct rtentry *);
 void	 rtfree_func(struct rtentry *);
 void	rt_updatemtu(struct ifnet *);
 
-typedef int rt_walktree_f_t(struct rtentry *, void *);
-typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
-void	rib_walk_del(u_int fibnum, int family, rt_filter_f_t *filter_f,
-	    void *arg, bool report);
-void	rt_foreach_fib_walk(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
-void	rt_foreach_fib_walk_del(int af, rt_filter_f_t *filter_f, void *arg);
 void	rt_flushifroutes_af(struct ifnet *, int);
 void	rt_flushifroutes(struct ifnet *ifp);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
-struct rtentry *rtalloc1(struct sockaddr *, int, u_long);
 int	 rtinit(struct ifaddr *, int, int);
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
  * but this will change.. 
  */
-struct rtentry *rtalloc1_fib(struct sockaddr *, int, u_long, u_int);
 int	 rtioctl_fib(u_long, caddr_t, u_int);
 int	 rtrequest_fib(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
@@ -430,12 +417,10 @@ int	 rtrequest1_fib(int, struct rt_addrinfo *, struct rtentry **, u_int);
 int	rib_lookup_info(uint32_t, const struct sockaddr *, uint32_t, uint32_t,
 	    struct rt_addrinfo *);
 void	rib_free_info(struct rt_addrinfo *info);
-int	rib_add_redirect(u_int fibnum, struct sockaddr *dst,
-	   struct sockaddr *gateway, struct sockaddr *author, struct ifnet *ifp,
-	   int flags, int expire_sec);
 
 /* New API */
-void	rib_walk(int af, u_int fibnum, rt_walktree_f_t *wa_f, void *arg);
+struct nhop_object *rib_lookup(uint32_t fibnum, const struct sockaddr *dst,
+	    uint32_t flags, uint32_t flowid);
 #endif
 
 #endif

@@ -69,12 +69,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
+#include <sys/uio.h>
 
 #include <ddb/ddb.h>
 
@@ -150,7 +152,7 @@ static	struct mtx crypto_q_mtx;
 #define	CRYPTO_Q_LOCK()		mtx_lock(&crypto_q_mtx)
 #define	CRYPTO_Q_UNLOCK()	mtx_unlock(&crypto_q_mtx)
 
-static SYSCTL_NODE(_kern, OID_AUTO, crypto, CTLFLAG_RW, 0,
+SYSCTL_NODE(_kern, OID_AUTO, crypto, CTLFLAG_RW, 0,
     "In-kernel cryptography");
 
 /*
@@ -530,8 +532,6 @@ crypto_auth_hash(const struct crypto_session_params *csp)
 {
 
 	switch (csp->csp_auth_alg) {
-	case CRYPTO_MD5_HMAC:
-		return (&auth_hash_hmac_md5);
 	case CRYPTO_SHA1_HMAC:
 		return (&auth_hash_hmac_sha1);
 	case CRYPTO_SHA2_224_HMAC:
@@ -546,14 +546,6 @@ crypto_auth_hash(const struct crypto_session_params *csp)
 		return (&auth_hash_null);
 	case CRYPTO_RIPEMD160_HMAC:
 		return (&auth_hash_hmac_ripemd_160);
-	case CRYPTO_MD5_KPDK:
-		return (&auth_hash_key_md5);
-	case CRYPTO_SHA1_KPDK:
-		return (&auth_hash_key_sha1);
-#ifdef notyet
-	case CRYPTO_MD5:
-		return (&auth_hash_md5);
-#endif
 	case CRYPTO_SHA1:
 		return (&auth_hash_sha1);
 	case CRYPTO_SHA2_224:
@@ -602,16 +594,6 @@ crypto_cipher(const struct crypto_session_params *csp)
 {
 
 	switch (csp->csp_cipher_alg) {
-	case CRYPTO_DES_CBC:
-		return (&enc_xform_des);
-	case CRYPTO_3DES_CBC:
-		return (&enc_xform_3des);
-	case CRYPTO_BLF_CBC:
-		return (&enc_xform_blf);
-	case CRYPTO_CAST_CBC:
-		return (&enc_xform_cast5);
-	case CRYPTO_SKIPJACK_CBC:
-		return (&enc_xform_skipjack);
 	case CRYPTO_RIJNDAEL128_CBC:
 		return (&enc_xform_rijndael128);
 	case CRYPTO_AES_XTS:
@@ -684,85 +666,86 @@ crypto_select_driver(const struct crypto_session_params *csp, int flags)
 	return best;
 }
 
+static enum alg_type {
+	ALG_NONE = 0,
+	ALG_CIPHER,
+	ALG_DIGEST,
+	ALG_KEYED_DIGEST,
+	ALG_COMPRESSION,
+	ALG_AEAD
+} alg_types[] = {
+	[CRYPTO_SHA1_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_RIPEMD160_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CBC] = ALG_CIPHER,
+	[CRYPTO_SHA1] = ALG_DIGEST,
+	[CRYPTO_NULL_HMAC] = ALG_DIGEST,
+	[CRYPTO_NULL_CBC] = ALG_CIPHER,
+	[CRYPTO_DEFLATE_COMP] = ALG_COMPRESSION,
+	[CRYPTO_SHA2_256_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA2_384_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_SHA2_512_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_CAMELLIA_CBC] = ALG_CIPHER,
+	[CRYPTO_AES_XTS] = ALG_CIPHER,
+	[CRYPTO_AES_ICM] = ALG_CIPHER,
+	[CRYPTO_AES_NIST_GMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_NIST_GCM_16] = ALG_AEAD,
+	[CRYPTO_BLAKE2B] = ALG_KEYED_DIGEST,
+	[CRYPTO_BLAKE2S] = ALG_KEYED_DIGEST,
+	[CRYPTO_CHACHA20] = ALG_CIPHER,
+	[CRYPTO_SHA2_224_HMAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_RIPEMD160] = ALG_DIGEST,
+	[CRYPTO_SHA2_224] = ALG_DIGEST,
+	[CRYPTO_SHA2_256] = ALG_DIGEST,
+	[CRYPTO_SHA2_384] = ALG_DIGEST,
+	[CRYPTO_SHA2_512] = ALG_DIGEST,
+	[CRYPTO_POLY1305] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CCM_CBC_MAC] = ALG_KEYED_DIGEST,
+	[CRYPTO_AES_CCM_16] = ALG_AEAD,
+};
+
+static enum alg_type
+alg_type(int alg)
+{
+
+	if (alg < nitems(alg_types))
+		return (alg_types[alg]);
+	return (ALG_NONE);
+}
+
 static bool
 alg_is_compression(int alg)
 {
 
-	if (alg == CRYPTO_DEFLATE_COMP)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_COMPRESSION);
 }
 
 static bool
 alg_is_cipher(int alg)
 {
 
-	if (alg >= CRYPTO_DES_CBC && alg <= CRYPTO_SKIPJACK_CBC)
-		return (true);
-	if (alg >= CRYPTO_AES_CBC && alg <= CRYPTO_ARC4)
-		return (true);
-	if (alg == CRYPTO_NULL_CBC)
-		return (true);
-	if (alg >= CRYPTO_CAMELLIA_CBC && alg <= CRYPTO_AES_ICM)
-		return (true);
-	if (alg == CRYPTO_CHACHA20)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_CIPHER);
 }
 
 static bool
 alg_is_digest(int alg)
 {
 
-	if (alg >= CRYPTO_MD5_HMAC && alg <= CRYPTO_SHA1_KPDK)
-		return (true);
-	if (alg >= CRYPTO_MD5 && alg <= CRYPTO_SHA1)
-		return (true);
-	if (alg == CRYPTO_NULL_HMAC)
-		return (true);
-	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
-		return (true);
-	if (alg == CRYPTO_AES_NIST_GMAC)
-		return (true);
-	if (alg >= CRYPTO_BLAKE2B && alg <= CRYPTO_BLAKE2S)
-		return (true);
-	if (alg >= CRYPTO_SHA2_224_HMAC && alg <= CRYPTO_POLY1305)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_CBC_MAC)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_DIGEST ||
+	    alg_type(alg) == ALG_KEYED_DIGEST);
 }
 
 static bool
 alg_is_keyed_digest(int alg)
 {
 
-	if (alg >= CRYPTO_MD5_HMAC && alg <= CRYPTO_SHA1_KPDK)
-		return (true);
-	if (alg >= CRYPTO_SHA2_256_HMAC && alg <= CRYPTO_SHA2_512_HMAC)
-		return (true);
-	if (alg == CRYPTO_AES_NIST_GMAC)
-		return (true);
-	if (alg >= CRYPTO_BLAKE2B && alg <= CRYPTO_BLAKE2S)
-		return (true);
-	if (alg == CRYPTO_SHA2_224_HMAC)
-		return (true);
-	if (alg == CRYPTO_POLY1305)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_CBC_MAC)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_KEYED_DIGEST);
 }
 
 static bool
 alg_is_aead(int alg)
 {
 
-	if (alg == CRYPTO_AES_NIST_GCM_16)
-		return (true);
-	if (alg == CRYPTO_AES_CCM_16)
-		return (true);
-	return (false);
+	return (alg_type(alg) == ALG_AEAD);
 }
 
 /* Various sanity checks on crypto session parameters. */
@@ -772,7 +755,7 @@ check_csp(const struct crypto_session_params *csp)
 	struct auth_hash *axf;
 
 	/* Mode-independent checks. */
-	if (csp->csp_flags != 0)
+	if ((csp->csp_flags & ~CSP_F_SEPARATE_OUTPUT) != 0)
 		return (false);
 	if (csp->csp_ivlen < 0 || csp->csp_cipher_klen < 0 ||
 	    csp->csp_auth_klen < 0 || csp->csp_auth_mlen < 0)
@@ -786,7 +769,7 @@ check_csp(const struct crypto_session_params *csp)
 	case CSP_MODE_COMPRESS:
 		if (!alg_is_compression(csp->csp_cipher_alg))
 			return (false);
-		if (csp->csp_flags != 0)
+		if (csp->csp_flags & CSP_F_SEPARATE_OUTPUT)
 			return (false);
 		if (csp->csp_cipher_klen != 0 || csp->csp_ivlen != 0 ||
 		    csp->csp_auth_alg != 0 || csp->csp_auth_klen != 0 ||
@@ -799,10 +782,8 @@ check_csp(const struct crypto_session_params *csp)
 		if (csp->csp_cipher_alg != CRYPTO_NULL_CBC) {
 			if (csp->csp_cipher_klen == 0)
 				return (false);
-			if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-				if (csp->csp_ivlen == 0)
-					return (false);
-			}
+			if (csp->csp_ivlen == 0)
+				return (false);
 		}
 		if (csp->csp_ivlen >= EALG_MAX_BLOCK_LEN)
 			return (false);
@@ -866,10 +847,8 @@ check_csp(const struct crypto_session_params *csp)
 		if (csp->csp_cipher_alg != CRYPTO_NULL_CBC) {
 			if (csp->csp_cipher_klen == 0)
 				return (false);
-			if (csp->csp_cipher_alg != CRYPTO_ARC4) {
-				if (csp->csp_ivlen == 0)
-					return (false);
-			}
+			if (csp->csp_ivlen == 0)
+				return (false);
 		}
 		if (csp->csp_ivlen >= EALG_MAX_BLOCK_LEN)
 			return (false);
@@ -1229,20 +1208,66 @@ crypto_unblock(u_int32_t driverid, int what)
 	return err;
 }
 
+size_t
+crypto_buffer_len(struct crypto_buffer *cb)
+{
+	switch (cb->cb_type) {
+	case CRYPTO_BUF_CONTIG:
+		return (cb->cb_buf_len);
+	case CRYPTO_BUF_MBUF:
+		if (cb->cb_mbuf->m_flags & M_PKTHDR)
+			return (cb->cb_mbuf->m_pkthdr.len);
+		return (m_length(cb->cb_mbuf, NULL));
+	case CRYPTO_BUF_UIO:
+		return (cb->cb_uio->uio_resid);
+	default:
+		return (0);
+	}
+}
+
 #ifdef INVARIANTS
 /* Various sanity checks on crypto requests. */
+static void
+cb_sanity(struct crypto_buffer *cb, const char *name)
+{
+	KASSERT(cb->cb_type > CRYPTO_BUF_NONE && cb->cb_type <= CRYPTO_BUF_LAST,
+	    ("incoming crp with invalid %s buffer type", name));
+	if (cb->cb_type == CRYPTO_BUF_CONTIG)
+		KASSERT(cb->cb_buf_len >= 0,
+		    ("incoming crp with -ve %s buffer length", name));
+}
+
 static void
 crp_sanity(struct cryptop *crp)
 {
 	struct crypto_session_params *csp;
+	struct crypto_buffer *out;
+	size_t ilen, len, olen;
 
 	KASSERT(crp->crp_session != NULL, ("incoming crp without a session"));
-	KASSERT(crp->crp_ilen >= 0, ("incoming crp with -ve input length"));
+	KASSERT(crp->crp_obuf.cb_type >= CRYPTO_BUF_NONE &&
+	    crp->crp_obuf.cb_type <= CRYPTO_BUF_LAST,
+	    ("incoming crp with invalid output buffer type"));
 	KASSERT(crp->crp_etype == 0, ("incoming crp with error"));
 	KASSERT(!(crp->crp_flags & CRYPTO_F_DONE),
 	    ("incoming crp already done"));
 
 	csp = &crp->crp_session->csp;
+	cb_sanity(&crp->crp_buf, "input");
+	ilen = crypto_buffer_len(&crp->crp_buf);
+	olen = ilen;
+	out = NULL;
+	if (csp->csp_flags & CSP_F_SEPARATE_OUTPUT) {
+		if (crp->crp_obuf.cb_type != CRYPTO_BUF_NONE) {
+			cb_sanity(&crp->crp_obuf, "output");
+			out = &crp->crp_obuf;
+			olen = crypto_buffer_len(out);
+		}
+	} else
+		KASSERT(crp->crp_obuf.cb_type == CRYPTO_BUF_NONE,
+		    ("incoming crp with separate output buffer "
+		    "but no session support"));
+
 	switch (csp->csp_mode) {
 	case CSP_MODE_COMPRESS:
 		KASSERT(crp->crp_op == CRYPTO_OP_COMPRESS ||
@@ -1280,17 +1305,14 @@ crp_sanity(struct cryptop *crp)
 		    ("invalid ETA op %x", crp->crp_op));
 		break;
 	}
-	KASSERT(crp->crp_buf_type >= CRYPTO_BUF_CONTIG &&
-	    crp->crp_buf_type <= CRYPTO_BUF_MBUF,
-	    ("invalid crp buffer type %d", crp->crp_buf_type));
 	if (csp->csp_mode == CSP_MODE_AEAD || csp->csp_mode == CSP_MODE_ETA) {
 		KASSERT(crp->crp_aad_start == 0 ||
-		    crp->crp_aad_start < crp->crp_ilen,
+		    crp->crp_aad_start < ilen,
 		    ("invalid AAD start"));
 		KASSERT(crp->crp_aad_length != 0 || crp->crp_aad_start == 0,
 		    ("AAD with zero length and non-zero start"));
 		KASSERT(crp->crp_aad_length == 0 ||
-		    crp->crp_aad_start + crp->crp_aad_length <= crp->crp_ilen,
+		    crp->crp_aad_start + crp->crp_aad_length <= ilen,
 		    ("AAD outside input length"));
 	} else {
 		KASSERT(crp->crp_aad_start == 0 && crp->crp_aad_length == 0,
@@ -1305,25 +1327,39 @@ crp_sanity(struct cryptop *crp)
 		KASSERT(crp->crp_iv_start == 0,
 		    ("IV_SEPARATE used with non-zero IV start"));
 	} else {
-		KASSERT(crp->crp_iv_start < crp->crp_ilen,
+		KASSERT(crp->crp_iv_start < ilen,
 		    ("invalid IV start"));
-		KASSERT(crp->crp_iv_start + csp->csp_ivlen <= crp->crp_ilen,
-		    ("IV outside input length"));
+		KASSERT(crp->crp_iv_start + csp->csp_ivlen <= ilen,
+		    ("IV outside buffer length"));
 	}
+	/* XXX: payload_start of 0 should always be < ilen? */
 	KASSERT(crp->crp_payload_start == 0 ||
-	    crp->crp_payload_start < crp->crp_ilen,
+	    crp->crp_payload_start < ilen,
 	    ("invalid payload start"));
 	KASSERT(crp->crp_payload_start + crp->crp_payload_length <=
-	    crp->crp_ilen, ("payload outside input length"));
+	    ilen, ("payload outside input buffer"));
+	if (out == NULL) {
+		KASSERT(crp->crp_payload_output_start == 0,
+		    ("payload output start non-zero without output buffer"));
+	} else {
+		KASSERT(crp->crp_payload_output_start < olen,
+		    ("invalid payload output start"));
+		KASSERT(crp->crp_payload_output_start +
+		    crp->crp_payload_length <= olen,
+		    ("payload outside output buffer"));
+	}
 	if (csp->csp_mode == CSP_MODE_DIGEST ||
 	    csp->csp_mode == CSP_MODE_AEAD || csp->csp_mode == CSP_MODE_ETA) {
+		if (crp->crp_op & CRYPTO_OP_VERIFY_DIGEST)
+			len = ilen;
+		else
+			len = olen;
 		KASSERT(crp->crp_digest_start == 0 ||
-		    crp->crp_digest_start < crp->crp_ilen,
+		    crp->crp_digest_start < len,
 		    ("invalid digest start"));
 		/* XXX: For the mlen == 0 case this check isn't perfect. */
-		KASSERT(crp->crp_digest_start + csp->csp_auth_mlen <=
-		    crp->crp_ilen,
-		    ("digest outside input length"));
+		KASSERT(crp->crp_digest_start + csp->csp_auth_mlen <= len,
+		    ("digest outside buffer"));
 	} else {
 		KASSERT(crp->crp_digest_start == 0,
 		    ("non-zero digest start for request without a digest"));
@@ -2166,10 +2202,10 @@ DB_SHOW_COMMAND(crypto, db_show_crypto)
 	    "HID", "Caps", "Ilen", "Olen", "Etype", "Flags",
 	    "Device", "Callback");
 	TAILQ_FOREACH(crp, &crp_q, crp_next) {
-		db_printf("%4u %08x %4u %4u %4u %04x %8p %8p\n"
+		db_printf("%4u %08x %4u %4u %04x %8p %8p\n"
 		    , crp->crp_session->cap->cc_hid
 		    , (int) crypto_ses2caps(crp->crp_session)
-		    , crp->crp_ilen, crp->crp_olen
+		    , crp->crp_olen
 		    , crp->crp_etype
 		    , crp->crp_flags
 		    , device_get_nameunit(crp->crp_session->cap->cc_dev)

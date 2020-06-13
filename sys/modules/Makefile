@@ -142,6 +142,8 @@ SUBDIR=	\
 	${_iavf} \
         ${_ibcore} \
 	${_ichwd} \
+	${_ice} \
+	${_ice_ddp} \
 	${_ida} \
 	if_bridge \
 	if_disc \
@@ -354,7 +356,6 @@ SUBDIR=	\
 	twe \
 	tws \
 	uart \
-	ubsec \
 	udf \
 	udf_iconv \
 	ufs \
@@ -426,7 +427,7 @@ _if_enc=	if_enc
 _if_gif=	if_gif
 _if_gre=	if_gre
 _ipfw_pmod=	ipfw_pmod
-.if ${MK_IPSEC_SUPPORT} != "no"
+.if ${KERN_OPTS:MIPSEC_SUPPORT} && !${KERN_OPTS:MIPSEC}
 _ipsec=		ipsec
 .endif
 .endif
@@ -533,6 +534,13 @@ _rtwnfw=	rtwnfw
 _cxgbe=		cxgbe
 .endif
 
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "arm64"
+_ice=		ice
+.if ${MK_SOURCELESS_UCODE} != "no"
+_ice_ddp=	ice_ddp
+.endif
+.endif
+
 # These rely on 64bit atomics
 .if ${MACHINE_ARCH} != "powerpc" && ${MACHINE_ARCH} != "powerpcspe" && \
 	${MACHINE_CPUARCH} != "mips"
@@ -621,9 +629,7 @@ _aac=		aac
 _aacraid=	aacraid
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
-.if ${COMPILER_TYPE} != "gcc" || ${COMPILER_VERSION} > 40201
 _aesni=		aesni
-.endif
 .endif
 _amd_ecc_inject=amd_ecc_inject
 _amdsbwd=	amdsbwd

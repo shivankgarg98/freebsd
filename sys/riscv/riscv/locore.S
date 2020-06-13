@@ -59,13 +59,6 @@ _start:
 	lla	gp, __global_pointer$
 .option pop
 
-	/* Get the physical address kernel loaded to */
-	lla	t0, virt_map
-	ld	t1, 0(t0)
-	sub	t1, t1, t0
-	li	t2, KERNBASE
-	sub	s9, t2, t1	/* s9 = physmem base */
-
 	/*
 	 * a0 = hart id
 	 * a1 = dtbp
@@ -87,6 +80,9 @@ _start:
 	 * Page tables
 	 */
 1:
+	/* Get the kernel's load address */
+	jal	get_physmem
+
 	/* Add L1 entry for kernel */
 	lla	s1, pagetable_l1
 	lla	s2, pagetable_l2	/* Link to next level PN */
@@ -143,6 +139,8 @@ _start:
 	lla	s1, pagetable_l2_devmap
 	mv	s2, a1
 	srli	s2, s2, PAGE_SHIFT
+	/* Mask off any bits that aren't aligned */
+	andi	s2, s2, ~((1 << (PTE_PPN1_S - PTE_PPN0_S)) - 1)
 
 	li	t0, (PTE_KERN)
 	slli	t2, s2, PTE_PPN0_S	/* << PTE_PPN0_S */
@@ -218,11 +216,27 @@ va:
 	sd	t0, RISCV_BOOTPARAMS_KERN_STACK(sp)
 
 	li	t0, (VM_EARLY_DTB_ADDRESS)
+	/* Add offset of DTB within superpage */
+	li	t1, (L2_OFFSET)
+	and	t1, a1, t1
+	add	t0, t0, t1
 	sd	t0, RISCV_BOOTPARAMS_DTBP_VIRT(sp)
+	sd	a1, RISCV_BOOTPARAMS_DTBP_PHYS(sp)
 
 	mv	a0, sp
 	call	_C_LABEL(initriscv)	/* Off we go */
 	call	_C_LABEL(mi_startup)
+
+/*
+ * Get the physical address the kernel is loaded to. Returned in s9.
+ */
+get_physmem:
+	lla	t0, virt_map	/* physical address of virt_map */
+	ld	t1, 0(t0)	/* virtual address of virt_map */
+	sub	t1, t1, t0	/* calculate phys->virt delta */
+	li	t2, KERNBASE
+	sub	s9, t2, t1	/* s9 = physmem base */
+	ret
 
 	.align  4
 initstack:
@@ -302,6 +316,9 @@ ENTRY(mpentry)
 	/* Setup stack pointer */
 	lla	t0, bootstack
 	ld	sp, 0(t0)
+
+	/* Get the kernel's load address */
+	jal get_physmem
 
 	/* Setup supervisor trap vector */
 	lla	t0, mpva
