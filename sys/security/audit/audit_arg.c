@@ -1061,7 +1061,7 @@ audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp)
 {
 	struct socket *so;
 	struct inpcb *pcb;
-	struct vnode *vp;
+	//struct vnode *vp;
 
 	if (ar == NULL)
 		return;

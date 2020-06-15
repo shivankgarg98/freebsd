@@ -1402,9 +1402,9 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			if (compare) {
 			    if (*retcmpp == 0) {
 				if (thyp != (u_int64_t)
-				    vfs_statfs(vnode_mount(vp))->f_fsid.val[0] ||
+				    (&(vnode_mount(vp)->mnt_stat))->f_fsid.val[0] ||
 				    thyp2 != (u_int64_t)
-				    vfs_statfs(vnode_mount(vp))->f_fsid.val[1])
+				    (&(vnode_mount(vp)->mnt_stat))->f_fsid.val[1])
 					*retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {

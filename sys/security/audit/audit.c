@@ -758,6 +758,9 @@ void
 audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)
 {
 	int retval;
+	int error;
+
+	error = nd->nd_repstat;
 	printf("audit_nfsrpc_exit\n");
 	if (error)
 		retval = -1;

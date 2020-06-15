@@ -54,9 +54,14 @@
 #include <sys/file.h>
 #include <sys/sysctl.h>
 
-#include <fs/nfs/nfsport.h>
-#include <fs/nfs/nfs.h>
+#define	NFSMUTEX_T		struct mtx
+#define	NFSSOCKADDR_T	struct sockaddr *
 
+#include <rpc/rpc.h>
+#include <sys/mount.h>
+#include <fs/nfs/nfsdport.h>
+#include <fs/nfs/nfsproto.h>
+#include <fs/nfs/nfs.h>
 /*
  * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
  * removed automatically as a result of configuring log files, and can be
@@ -425,13 +430,13 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 #define	AUDITING_NFS(nd)	(__predict_false((nd)->nd_flag & ND_AUDITREC))
 
 #define	AUDIT_NFSARG_FD(nd, fd) do {					\
-	if (AUDITING_NFS(nd)	)					\
-		audit_nfsarg_fd((nd)->nd_ar, (fd));				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_fd((nd)->nd_ar, (fd));			\
 } while (0)
 
 #define	AUDIT_NFSARG_VALUE(nd, value) do {				\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsarg_value((nd)->nd_ar, (value));			\
+		audit_nfsarg_value((nd)->nd_ar, (value));		\
 } while (0)
 
 #define	AUDIT_NFSARG_VNODE1(nd, vp) do {				\
@@ -441,7 +446,7 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 
 #define	AUDIT_NFSARG_FILE(nd, p, fp) do {				\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsarg_file((nd)->nd_ar, (p), (fp));			\
+		audit_nfsarg_file((nd)->nd_ar, (p), (fp));		\
 } while (0)
 
 #define	AUDIT_NFSARG_TEXT(nd, text) do {				\
@@ -458,7 +463,7 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 	_audit_entered;							\
 })
 
-#define	AUDIT_NFSRPC_EXIT(nd, td)	do {				\
+#define	AUDIT_NFSRPC_EXIT(nd, td) do {					\
 	if (AUDITING_NFS(nd))						\
 		audit_nfsrpc_exit(nd, td);				\
 } while (0)
@@ -530,8 +535,8 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 #define	AUDIT_NFSARG_FILE(nd, p, fp)
 #define	AUDIT_NFSARG_TEXT(nd, text)
 
-#define AUDIT_NFSRPC_ENTER(code,td, nd)	0
-#define AUDIT_NFSRPC_EXIT(error,td, nd)
+#define AUDIT_NFSRPC_ENTER(nd, td)	0
+#define AUDIT_NFSRPC_EXIT(nd ,td)
 
 #define	AUDIT_SYSCLOSE(p, fd)
 
