@@ -54,6 +54,9 @@
 #include <sys/file.h>
 #include <sys/sysctl.h>
 
+/* These defintion are required for NFS part and including their NFS header
+ * file cause conflict with some structure defintion.
+ */
 #define	NFSMUTEX_T		struct mtx
 #define	NFSSOCKADDR_T	struct sockaddr *
 
