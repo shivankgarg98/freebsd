@@ -55,10 +55,11 @@ We will need to create new AUE_ events for each NFS RPC, since there is no 1:1 r
 5. **How would the NFS audit record look like?**
 
 a. HEADER_TOKEN - can we use **Expanded Header Token** here and the Machine Address field to store client info?? See `struct auditinfo_addr`
-b. information of the subject: some token describing subect info. 
+b. SUBJECT TOKEN - information of the subject: some token describing subect info. The subject/process token for syscall audit have cred of the thread. In case  of NFS audit, do I need to overwrite it to reflect creds of the client. struct au_tid_addr can be used to reflect those info. Code place: kaudit_to_bsm, audit_record_ctor.
+If this the process token (audit_arg_process) or subject token, which of these?
 c. information of the object affected by event. (that is some token describing file)
-c. event-specific information: some token depending on RPC. for instance, it can describing a file, some attr, or some text, or IP address etc. See bsm_token.c and audit.log(5) for all such possibilty.
-d. return token
+d. event-specific information: some token depending on RPC. for instance, it can describing a file, some attr, or some text, or IP address etc. See bsm_token.c and audit.log(5) for all such possibilty.
+e. return token
 
 Can I add a new token(NFS RPC) for the associating the already defined events(AUE_OPEN, etc.) and this wil differentiate the NFS server audit records when a client access the NFS shared dir v/s when some user on server access the NFS shared dir
 
@@ -73,7 +74,13 @@ We can't use td_ar field of struct thread for storing the audit record. Therefor
 
 
 #### Doubts while deploying the above design-
-
+1. difference b/w socket addr - nd_nam and return socket addr - nd_nam2
+  nd.nd_nam = svc_getrpccaller(rqst);
+	nd.nd_nam2 = rqst->rq_addr; comment is reply address or NULL if connected
+for logging the client info which should I choose?
+2. audit_bsm: /* XXX Need to handle ARG_SADDRINET6 */
+Why it's not handled in audit? Is there any challenge in handling the case similiar to IPv4.
+3. to do audit preselection. currently it is hardcoded both while enter and commit
 
 #### References and Study material
 1. Oracle Docs: https://docs.oracle.com/cd/E19683-01/806-4078/6jd6cjs6k/index.html, https://docs.oracle.com/cd/E19109-01/tsolaris8/816-1049/index.html

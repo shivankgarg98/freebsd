@@ -1783,6 +1783,28 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_THR_EXIT:
 		break;
 
+	case AUE_NFSRPC_READ:
+	case AUE_NFSRPC_WRITE:
+	case AUE_NFSRPC_GETATTR:
+	case AUE_NFSRPC_SETATTR:
+	case AUE_NFSRPC_REMOVE:
+		printf("** audit_bsm NFSRPC case **\n");
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
+		FD_VNODE1_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_SOCKINFO)) {
+				tok = kau_to_socket(&ar->ar_arg_sockinfo);
+				kau_write(rec, tok);
+		}
+		break;
+	
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",

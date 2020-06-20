@@ -1028,7 +1028,6 @@ audit_nfsarg_fd(struct kaudit_record *ar, int fd)
 	
 	if(ar == NULL)
 		return;
-
 	ar->k_ar.ar_arg_fd = fd;
 	ARG_SET_VALID(ar, ARG_FD);
 }
@@ -1043,6 +1042,42 @@ audit_nfsarg_value(struct kaudit_record *ar, long value)
 	ar->k_ar.ar_arg_value = value;
 	ARG_SET_VALID(ar,ARG_VALUE);
 }
+
+void
+audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol)
+{
+	
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_sockinfo.so_domain = sodomain;
+	ar->k_ar.ar_arg_sockinfo.so_type = sotype;
+	ar->k_ar.ar_arg_sockinfo.so_protocol = soprotocol;
+	ARG_SET_VALID(ar, ARG_SOCKINFO);
+}
+
+void
+audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
+{
+
+	KASSERT(sa != NULL, ("audit_nfsarg_sockaddr: sa == NULL"));
+	
+	if (ar == NULL)
+		return;
+
+	bcopy(sa, &ar->k_ar.ar_arg_sockaddr, sa->sa_len);
+	switch (sa->sa_family) {
+	case AF_INET:
+		ARG_SET_VALID(ar, ARG_SADDRINET);
+		break;
+
+	case AF_INET6:
+		ARG_SET_VALID(ar, ARG_SADDRINET6);
+		break;
+	/* XXXAUDIT: default? */
+	}
+}
+
 void
 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 {
@@ -1056,6 +1091,7 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 	if (error == 0)
 		ARG_SET_VALID(ar, ARG_VNODE1);
 }
+
 void
 audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp)
 {

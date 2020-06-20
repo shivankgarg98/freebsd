@@ -165,6 +165,8 @@ void	 audit_thread_free(struct thread *td);
 
 void audit_nfsarg_fd(struct kaudit_record *ar, int fd);
 void audit_nfsarg_value(struct kaudit_record *ar, long value);
+void audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol);
+void audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa);
 void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 void audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp);
 void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
@@ -442,6 +444,16 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 		audit_nfsarg_value((nd)->nd_ar, (value));		\
 } while (0)
 
+#define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol) do {	\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_socket((nd)->nd_ar, (sodomain), (sotype), (soprotocol));	\
+} while (0)
+
+#define	AUDIT_NFSARG_NETSOCKADDR(nd, sa) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_netsockaddr((nd)->nd_ar, (sa));		\
+} while (0)
+
 #define	AUDIT_NFSARG_VNODE1(nd, vp) do {				\
 	if (AUDITING_NFS(nd))						\
 		audit_nfsarg_vnode1((nd)->nd_ar, (vp));			\
@@ -534,6 +546,8 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 
 #define	AUDIT_NFSARG_FD(nd, fd)
 #define	AUDIT_NFSARG_VALUE(nd, value)
+#define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol)
+#define	AUDIT_NFSARG_NETSOCKADDR(nd, sa)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
 #define	AUDIT_NFSARG_FILE(nd, p, fp)
 #define	AUDIT_NFSARG_TEXT(nd, text)

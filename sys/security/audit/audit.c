@@ -524,6 +524,9 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	class = au_event_class(event);
 
 	ar->k_ar_commit |= AR_COMMIT_KERNEL;
+	
+	if(event >= 43266 && event <= 43286)
+		ar->k_ar_commit |= AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE;
 	if (au_preselect(event, class, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
 	if (audit_pipe_preselect(auid, event, class, sorf,
@@ -550,7 +553,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
-
+	printf("audit_commmit: commit flag checked\n");
 	/*
 	 * Note: it could be that some records initiated while audit was
 	 * enabled should still be committed?
@@ -566,7 +569,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
-
+	printf("audit_trail_suspended: %d, audit_trail_enabled: %d \n",audit_trail_suspended,audit_trail_enabled);
 	/*
 	 * Constrain the number of committed audit records based on the
 	 * configurable parameter.
@@ -574,6 +577,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	while (audit_q_len >= audit_qctrl.aq_hiwater)
 		cv_wait(&audit_watermark_cv, &audit_mtx);
 
+	printf("audit_commit: HERE AT LAST\n");
 	TAILQ_INSERT_TAIL(&audit_q, ar, k_q);
 	audit_q_len++;
 	audit_pre_q_len--;

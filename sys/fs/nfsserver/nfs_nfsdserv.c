@@ -236,7 +236,6 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 
 	if (nd->nd_repstat)
 		goto out;
-	printf("### NFS GET_ATTR ###\n");
 	AUDIT_NFSARG_TEXT(nd, "NFS_SHIVANK_GETATTR");
 	AUDIT_NFSARG_VNODE1(nd, vp);
 
@@ -723,7 +722,6 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 	
-	printf("*** READ RPC NFS ***\n");
 	AUDIT_NFSARG_TEXT(nd,"NFS_SHIVANK_READ");
 	AUDIT_NFSARG_VNODE1(nd,vp);
 
