@@ -151,6 +151,7 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 	 */
 	evc_new = malloc(sizeof(*evc), M_AUDITEVCLASS, M_WAITOK);
 
+	printf("au_evclassmap_insert:event:%x class:%x\n",event, class);
 	EVCLASS_WLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
 	LIST_FOREACH(evc, &evcl->head, entry) {
