@@ -525,8 +525,8 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 
 	ar->k_ar_commit |= AR_COMMIT_KERNEL;
 	
-	if(event >= 43266 && event <= 43286)
-		ar->k_ar_commit |= AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE;
+//	if(event >= 43266 && event <= 43286)
+//		ar->k_ar_commit |= AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE;
 	if (au_preselect(event, class, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
 	if (audit_pipe_preselect(auid, event, class, sorf,
@@ -553,7 +553,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
-	printf("audit_commmit: commit flag checked\n");
 	/*
 	 * Note: it could be that some records initiated while audit was
 	 * enabled should still be committed?
@@ -569,7 +568,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
-	printf("audit_trail_suspended: %d, audit_trail_enabled: %d \n",audit_trail_suspended,audit_trail_enabled);
 	/*
 	 * Constrain the number of committed audit records based on the
 	 * configurable parameter.
@@ -577,7 +575,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	while (audit_q_len >= audit_qctrl.aq_hiwater)
 		cv_wait(&audit_watermark_cv, &audit_mtx);
 
-	printf("audit_commit: HERE AT LAST\n");
 	TAILQ_INSERT_TAIL(&audit_q, ar, k_q);
 	audit_q_len++;
 	audit_pre_q_len--;
@@ -738,18 +735,37 @@ audit_syscall_exit(int error, struct thread *td)
 void
 audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 {
-	int record_needed;
+	struct au_mask *aumask;
+	au_class_t class;
 	au_event_t event;
+	au_id_t auid;
+	int record_needed;
+	/* TODO: check RPC info - some sanity check? */
 	
-	printf("audit_nfspc_enter\n");
-	/* TODO: check RPC info */
+	//event = 43265 + nd->nd_procnum; /*simple linear mapping*/
+	event = nfsrv_auevent[nd->nd_procnum];
 
-	/* TODO: set event to some appropriate audit event */
-	/* AUDIT EVENT PRESELECTION based on RPC #: see that information from RPC procedure */
-	
-	event = 43265 + nd->nd_procnum; /*simple linear mapping*/
-	
-	record_needed = 1; /* do no pre-selection for now */
+	/* I'm not able to understand the role of auid and how it is assinged */
+
+	/* TODO: issued related to aumask */
+	auid = td->td_ucred->cr_audit.ai_auid;
+	if (auid == AU_DEFAUDITID) {
+		aumask = &audit_nae_mask;
+	} else {
+		aumask = &td->td_ucred->cr_audit.ai_mask;
+	}
+	class = au_event_class(event);
+
+	printf("aumask: succuess=%x failure=%x\n",
+	    td->td_ucred->cr_audit.ai_mask.am_success,
+	    td->td_ucred->cr_audit.ai_mask.am_failure);
+	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
+		record_needed = 1;
+	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
+		record_needed = 1; /*no idea for this case, just added for now */
+	} else {
+		record_needed = 0;
+	}
 	if (record_needed) {
 		nd->nd_ar = audit_new(event, td);
 		if (nd->nd_ar != NULL)

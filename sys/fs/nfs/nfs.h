@@ -36,6 +36,9 @@
 
 #ifndef _NFS_NFS_H_
 #define	_NFS_NFS_H_
+
+#include <bsm/audit_kevents.h>
+
 /*
  * Tunable constants for nfs
  */
@@ -557,6 +560,35 @@ struct nfscred {
 #define	NFSV4ROOT_REFERRAL	((int32_t) -2)
 #define	NFSV4ROOT_INO		2	/* It's traditional */
 #define	NFSV4ROOT_GEN		1
+
+/*
+ * This static array indicates the audit event number corresponding to
+ * NFS RPCs
+ */
+static u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
+	AUE_NULL,
+	AUE_NFSRPC_GETATTR,
+	AUE_NFSRPC_SETATTR,
+	AUR_NFSRPC_LOOKUP,
+	AUE_NFSRPC_ACCESS,
+	AUE_NFSRPC_READLINK,
+	AUE_NFSRPC_READ,
+	AUE_NFSRPC_WRITE,
+	AUE_NFSRPC_CREATE,
+	AUE_NFSRPC_MKDIR,
+	AUE_NFSRPC_SYMLINK,
+	AUE_NFSRPC_MKNOD,
+	AUE_NFSRPC_REMOVE,
+	AUE_NFSRPC_RMDIR,
+	AUE_NFSRPC_RENAME,
+	AUE_NFSRPC_LINK,
+	AUE_NFSRPC_READDIR,
+	AUE_NFSRPC_READDIRPLUS,
+	AUE_NFSRPC_FSSTAT,
+	AUE_NFSRPC_FSINFO,
+	AUE_NFSRPC_PATHCONF,
+	AUE_NFSRPC_COMMIT,
+};
 
 /*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.

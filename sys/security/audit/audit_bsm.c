@@ -1788,7 +1788,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSRPC_GETATTR:
 	case AUE_NFSRPC_SETATTR:
 	case AUE_NFSRPC_REMOVE:
-		printf("** audit_bsm NFSRPC case **\n");
 		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
 			tok = au_to_sock_inet((struct sockaddr_in *)
 			    &ar->ar_arg_sockaddr);

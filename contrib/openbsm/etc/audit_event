@@ -614,7 +614,6 @@
 43261:AUE_LGETUUID:lgetuuid(2):ip
 43262:AUE_EXECVEAT:execveat(2):pc,ex
 43263:AUE_SHMRENAME:shm_rename(2):ip
-
 #
 # NFS RPC related events.
 #
@@ -639,7 +638,6 @@
 43284:AUE_NFSRPC_FSINFO:nfsrvd_fsinfo:nfs
 43285:AUE_NFSRPC_PATHCONF:nfsrvd_pathconf:nfs
 43286:AUE_NFSRPC_COMMIT:nfsrvd_commit:nfs
-
 #
 # Solaris userspace events.
 #

@@ -190,6 +190,20 @@ au_evclassmap_init(void)
 		if (sysent[i].sy_auevent != AUE_NULL)
 			au_evclassmap_insert(sysent[i].sy_auevent, 0);
 	}
+	
+	/*
+	 * Initial event to class mapping for NFS RPCs.
+	 * First entry of NFS audit event table is AUE_NULL.
+	 */
+	/*
+	 * XXX Do I need to initiliaze the db for NFS RPC events,
+	 * because they are anyway inserted by sys_auditon as defined
+	 * in audit_events
+	 */
+	for (i = 1; i < NFS_V3NPROCS; i++) {
+		/* i also refer to RPC procedure number. */
+		au_evclassmap_insert(nfsrv_auevent[i], 0);
+	}
 }
 
 /*
@@ -243,6 +257,7 @@ au_evnamemap_insert(au_event_t event, const char *name)
 	 * Free if there is already a mapping for this event.
 	 */
 	ene_new = malloc(sizeof(*ene_new), M_AUDITEVNAME, M_WAITOK | M_ZERO);
+	printf("evnum:%hu, evname:%s\n",event,name);
 	EVNAMEMAP_WLOCK();
 	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
 	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {
@@ -256,6 +271,7 @@ au_evnamemap_insert(au_event_t event, const char *name)
 			return;
 		}
 	}
+
 	ene = ene_new;
 	mtx_init(&ene->ene_lock, "au_evnamemap", NULL, MTX_DEF);
 	ene->ene_event = event;
