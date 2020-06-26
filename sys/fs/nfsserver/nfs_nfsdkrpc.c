@@ -412,7 +412,6 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (tagstr != NULL && taglen > NFSV4_SMALLSTR)
 		free(tagstr, M_TEMP);
 
-	printf("** nfs exit ***\n");
 	NFSEXITCODE2(0, nd);
 	return (cacherep);
 }

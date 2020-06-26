@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 FEATURE(audit, "BSM audit support");
 
 static uma_zone_t	audit_record_zone;
+static uma_zone_t	audit_nfsrecord_zone;
 static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
@@ -327,6 +328,43 @@ audit_record_dtor(void *mem, int size, void *arg)
 }
 
 /*
+ * Construct an audit record for the passed nfs server
+ * request descritption
+ */
+static int
+audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
+{
+	struct kaudit_record *ar;
+	struct nfsrv_descript *nd;
+	struct ucred *cred;
+
+	KASSERT(sizeof(*ar) == size, ("audit_nfsrecord_ctor: wrong size"));
+
+	nd = arg;
+	ar = mem;
+	bzero(ar, sizeof(*ar));
+	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
+	nanotime(&ar->k_ar.ar_starttime);
+
+	/*
+	 * Export the subject credential.
+	 */
+	cred = nd->nd_cred;
+	cru2x(cred, &ar->k_ar.ar_subj_cred);
+	ar->k_ar.ar_subj_ruid = cred->cr_ruid;
+	ar->k_ar.ar_subj_rgid = cred->cr_rgid;
+	ar->k_ar.ar_subj_egid = cred->cr_groups[0];
+	ar->k_ar.ar_subj_auid = cred->cr_audit.ai_auid;
+	ar->k_ar.ar_subj_asid = cred->cr_audit.ai_asid;
+	ar->k_ar.ar_subj_pid = 0; 
+	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
+	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
+	ar->k_ar.ar_jailname[0] = '\0';
+	
+	return (0);
+}
+
+/*
  * Initialize the Audit subsystem: configuration state, work queue,
  * synchronization primitives, worker thread, and trigger device node.  Also
  * call into the BSM assembly code to initialize it.
@@ -368,6 +406,10 @@ audit_init(void)
 
 	audit_record_zone = uma_zcreate("audit_record",
 	    sizeof(struct kaudit_record), audit_record_ctor,
+	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
+
+	audit_nfsrecord_zone = uma_zcreate("audit_nfsrecord",
+	    sizeof(struct kaudit_record), audit_nfsrecord_ctor,
 	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* First initialisation of audit_syscalls_enabled. */
@@ -429,7 +471,42 @@ audit_new(int event, struct thread *td)
 	 */
 	ar = uma_zalloc_arg(audit_record_zone, td, M_WAITOK);
 	ar->k_ar.ar_event = event;
+	ar->kaudit_record_type = AUDIT_SYSCALL_RECORD;
 
+	mtx_lock(&audit_mtx);
+	audit_pre_q_len++;
+	mtx_unlock(&audit_mtx);
+
+	return (ar);
+}
+
+struct kaudit_record *
+audit_nfs_new(int event, struct nfsrv_descript *nd)
+{
+	struct kaudit_record *ar;
+
+	/*This comment statement becomes untrue in case NFS audit records are
+	 *created. will this create any problem??
+	 */
+	/*
+	 * Note: the number of outstanding uncommitted audit records is
+	 * limited to the number of concurrent threads servicing system calls
+	 * in the kernel.
+	 */
+
+	/*
+	 * XXX: I created a uma_zone for nfs records. The previous arrangement
+	 * which was passes thread was also fine, but this give the nd control
+	 * over its subject credentials (So subject token will contain creds
+	 * from nd->nd_cred) may revert to td_cr if those credentials would look
+	 * more appropraiate in NFS RPC audit subject token.
+	 * It all depends. TO CONFIRM.
+	 */
+
+	ar = uma_zalloc_arg(audit_nfsrecord_zone, nd, M_WAITOK);
+	ar->k_ar.ar_event = event;
+	ar->kaudit_record_type = AUDIT_NFSRPC_RECORD;
+	
 	mtx_lock(&audit_mtx);
 	audit_pre_q_len++;
 	mtx_unlock(&audit_mtx);
@@ -440,8 +517,17 @@ audit_new(int event, struct thread *td)
 void
 audit_free(struct kaudit_record *ar)
 {
-
-	uma_zfree(audit_record_zone, ar);
+	switch (ar->kaudit_record_type) {
+	case AUDIT_SYSCALL_RECORD:
+		uma_zfree(audit_record_zone, ar);
+		break;
+	case AUDIT_NFSRPC_RECORD:
+		uma_zfree(audit_nfsrecord_zone, ar);
+		break;
+	default:
+		printf("invalid case\n");
+		break;
+	}
 }
 
 void
@@ -523,10 +609,9 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	event = ar->k_ar.ar_event;
 	class = au_event_class(event);
 
+	printf("audit_class %x:class, %d\n",class,sorf);
 	ar->k_ar_commit |= AR_COMMIT_KERNEL;
 	
-//	if(event >= 43266 && event <= 43286)
-//		ar->k_ar_commit |= AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE;
 	if (au_preselect(event, class, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
 	if (audit_pipe_preselect(auid, event, class, sorf,
@@ -543,7 +628,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 			ar->k_ar_commit |= AR_PRESELECT_DTRACE;
 	}
 #endif
-
 	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE |
 	    AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE |
 	    AR_PRESELECT_DTRACE)) == 0) {
@@ -741,13 +825,21 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	au_id_t auid;
 	int record_needed;
 	/* TODO: check RPC info - some sanity check? */
-	
+
+	KASSERT(nd->nd_ar == NULL, ("audit_nfsrpc_enter: nd->nd_ar != NULL"));
+	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
+	    ("audit_nfsrpc_enter: ND_AUDITREC set"));
+
 	//event = 43265 + nd->nd_procnum; /*simple linear mapping*/
 	event = nfsrv_auevent[nd->nd_procnum];
 
-	/* I'm not able to understand the role of auid and how it is assinged */
-
-	/* TODO: issued related to aumask */
+	/* I'm unable to understand how auid is assigned and its role exactly.
+	 * Somehow, it is assigned as AU_DEFAUDITID. Therefore, aumask is assigned
+	 * as that non-attr event.
+	 * Ideally, it should come under attr events. Right?
+	 */
+	memcpy(&(nd->nd_cred->cr_audit),&(td->td_ucred->cr_audit),
+	    sizeof(struct auditinfo_addr));
 	auid = td->td_ucred->cr_audit.ai_auid;
 	if (auid == AU_DEFAUDITID) {
 		aumask = &audit_nae_mask;
@@ -756,18 +848,15 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	}
 	class = au_event_class(event);
 
-	printf("aumask: succuess=%x failure=%x\n",
-	    td->td_ucred->cr_audit.ai_mask.am_success,
-	    td->td_ucred->cr_audit.ai_mask.am_failure);
 	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
 		record_needed = 1;
 	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
-		record_needed = 1; /*no idea for this case, just added for now */
+		record_needed = 1;
 	} else {
 		record_needed = 0;
 	}
 	if (record_needed) {
-		nd->nd_ar = audit_new(event, td);
+		nd->nd_ar = audit_nfs_new(event, nd);
 		if (nd->nd_ar != NULL)
 			nd->nd_flag |= ND_AUDITREC;
 	} else
@@ -781,11 +870,10 @@ audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)
 	int error;
 
 	error = nd->nd_repstat;
-	printf("audit_nfsrpc_exit\n");
 	if (error)
 		retval = -1;
 	else
-		retval = nd->nd_errp[0];/*pointer to ret status. How to use it correctly?*/
+		retval = *(nd->nd_errp);
 
 	audit_commit(nd->nd_ar, error, retval);
 	nd->nd_ar = NULL;

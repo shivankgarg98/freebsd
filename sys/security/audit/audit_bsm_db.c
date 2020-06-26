@@ -151,7 +151,6 @@ au_evclassmap_insert(au_event_t event, au_class_t class)
 	 */
 	evc_new = malloc(sizeof(*evc), M_AUDITEVCLASS, M_WAITOK);
 
-	printf("au_evclassmap_insert:event:%x class:%x\n",event, class);
 	EVCLASS_WLOCK();
 	evcl = &evclass_hash[event % EVCLASSMAP_HASH_TABLE_SIZE];
 	LIST_FOREACH(evc, &evcl->head, entry) {
@@ -257,7 +256,6 @@ au_evnamemap_insert(au_event_t event, const char *name)
 	 * Free if there is already a mapping for this event.
 	 */
 	ene_new = malloc(sizeof(*ene_new), M_AUDITEVNAME, M_WAITOK | M_ZERO);
-	printf("evnum:%hu, evname:%s\n",event,name);
 	EVNAMEMAP_WLOCK();
 	enl = &evnamemap_hash[event % EVNAMEMAP_HASH_TABLE_SIZE];
 	LIST_FOREACH(ene, &enl->enl_head, ene_entry) {

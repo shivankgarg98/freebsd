@@ -473,7 +473,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	au_tid_t tid;
 	struct audit_record *ar;
 	int ctr;
-
+	
+	printf("kaudit_to_bsm\n");
 	KASSERT(kar != NULL, ("kaudit_to_bsm: kar == NULL"));
 
 	*pau = NULL;
@@ -1783,11 +1784,27 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_THR_EXIT:
 		break;
 
-	case AUE_NFSRPC_READ:
-	case AUE_NFSRPC_WRITE:
 	case AUE_NFSRPC_GETATTR:
 	case AUE_NFSRPC_SETATTR:
+	case AUR_NFSRPC_LOOKUP:
+	case AUE_NFSRPC_ACCESS:
+	case AUE_NFSRPC_READLINK:
+	case AUE_NFSRPC_READ:
+	case AUE_NFSRPC_WRITE:
+	case AUE_NFSRPC_CREATE:
+	case AUE_NFSRPC_MKDIR:
+	case AUE_NFSRPC_SYMLINK:
+	case AUE_NFSRPC_MKNOD:
 	case AUE_NFSRPC_REMOVE:
+	case AUE_NFSRPC_RMDIR:
+	case AUE_NFSRPC_RENAME:
+	case AUE_NFSRPC_LINK:
+	case AUE_NFSRPC_READDIR:
+	case AUE_NFSRPC_READDIRPLUS:
+	case AUE_NFSRPC_FSSTAT:
+	case AUE_NFSRPC_FSINFO:
+	case AUE_NFSRPC_PATHCONF:
+	case AUE_NFSRPC_COMMIT:	
 		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
 			tok = au_to_sock_inet((struct sockaddr_in *)
 			    &ar->ar_arg_sockaddr);

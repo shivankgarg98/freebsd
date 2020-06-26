@@ -1152,7 +1152,6 @@ audit_nfsarg_text(struct kaudit_record *ar, const char *text)
 {
 
 	KASSERT(text != NULL, ("audit_arg_text: text == NULL"));
-
 	if (ar == NULL)
 		return;
 
