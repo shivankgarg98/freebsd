@@ -609,7 +609,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	event = ar->k_ar.ar_event;
 	class = au_event_class(event);
 
-	printf("audit_class %x:class, %d\n",class,sorf);
 	ar->k_ar_commit |= AR_COMMIT_KERNEL;
 	
 	if (au_preselect(event, class, aumask, sorf) != 0)

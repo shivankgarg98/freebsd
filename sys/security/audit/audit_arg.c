@@ -1025,7 +1025,7 @@ audit_sysclose(struct thread *td, int fd)
 void
 audit_nfsarg_fd(struct kaudit_record *ar, int fd)
 {
-	
+
 	if(ar == NULL)
 		return;
 	ar->k_ar.ar_arg_fd = fd;
@@ -1033,9 +1033,20 @@ audit_nfsarg_fd(struct kaudit_record *ar, int fd)
 }
 
 void
+audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_mode = mode;
+	ARG_SET_VALID(ar, ARG_MODE);
+}
+
+void
 audit_nfsarg_value(struct kaudit_record *ar, long value)
 {
-	
+
 	if(ar == NULL)
 		return;
 
@@ -1046,7 +1057,7 @@ audit_nfsarg_value(struct kaudit_record *ar, long value)
 void
 audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol)
 {
-	
+
 	if (ar == NULL)
 		return;
 
@@ -1085,7 +1096,7 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 
 	if (ar == NULL)
 		return;
-
+	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
 	ARG_CLEAR_VALID(ar, ARG_VNODE1);
 	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
 	if (error == 0)
@@ -1145,6 +1156,17 @@ audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp)
 		/* XXXAUDIT: else? */
 		break;
 	}
+}
+void
+audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath)
+{
+
+	if (ar == NULL)
+		return;
+
+	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
+	ARG_SET_VALID(ar, ARG_UPATH1);
 }
 
 void

@@ -128,6 +128,7 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	nfsmode = fxdr_unsigned(u_int32_t, *tl);
+	AUDIT_NFSARG_MODE(nd, nfsmode);
 	if ((nd->nd_flag & ND_NFSV4) &&
 	    (nfsmode & ~(NFSACCESS_READ | NFSACCESS_LOOKUP |
 	     NFSACCESS_MODIFY | NFSACCESS_EXTEND | NFSACCESS_DELETE |
@@ -234,10 +235,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	accmode_t accmode;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat)
 		goto out;
-	AUDIT_NFSARG_TEXT(nd, "NFS_SHIVANK_GETATTR");
-	AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
@@ -282,7 +282,6 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 				    NFSACCCHK_VPISLOCKED, NULL);
 		}
 	}
-	AUDIT_NFSARG_VALUE(nd, nd->nd_repstat);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, &attrbits);
 	if (!nd->nd_repstat) {
@@ -594,6 +593,7 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKLEAF | SAVESTART);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
 	if (error) {
 		vrele(dp);
 		nfsvno_relpathbuf(&named);
@@ -722,9 +722,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 	
-	AUDIT_NFSARG_TEXT(nd,"NFS_SHIVANK_READ");
-	AUDIT_NFSARG_VNODE1(nd,vp);
-
+	AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
@@ -912,6 +910,8 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	nfsattrbit_t attrbits;
 	struct thread *p = curthread;
+
+	AUDIT_NFSARG_VNODE1(nd,vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, forat_ret, &forat, aftat_ret, &nva);

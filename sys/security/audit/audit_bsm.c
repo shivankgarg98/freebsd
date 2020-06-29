@@ -474,7 +474,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	struct audit_record *ar;
 	int ctr;
 	
-	printf("kaudit_to_bsm\n");
 	KASSERT(kar != NULL, ("kaudit_to_bsm: kar == NULL"));
 
 	*pau = NULL;
@@ -1784,13 +1783,38 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_THR_EXIT:
 		break;
 
+	/* XXX: Should I also log NFS file handle? The sycalls events generally log
+	 * FD VNODE and UPATH tokens. Following that analogy the NFS RPC event can
+	 * can log filehandle*/
 	case AUE_NFSRPC_GETATTR:
 	case AUE_NFSRPC_SETATTR:
+		/* TODO: should also audit new attribute in case of setattr? */
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUR_NFSRPC_LOOKUP:
+		UPATH1_TOKENS;
+		break;
 	case AUE_NFSRPC_ACCESS:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSRPC_READLINK:
+		/*TODO: save path and vnode token*/
+		break;
 	case AUE_NFSRPC_READ:
 	case AUE_NFSRPC_WRITE:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
 	case AUE_NFSRPC_CREATE:
 	case AUE_NFSRPC_MKDIR:
 	case AUE_NFSRPC_SYMLINK:
@@ -1804,21 +1828,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSRPC_FSSTAT:
 	case AUE_NFSRPC_FSINFO:
 	case AUE_NFSRPC_PATHCONF:
-	case AUE_NFSRPC_COMMIT:	
-		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
-			tok = au_to_sock_inet((struct sockaddr_in *)
-			    &ar->ar_arg_sockaddr);
-			kau_write(rec, tok);
-		}
-		if (ARG_IS_VALID(kar, ARG_TEXT)) {
-			tok = au_to_text(ar->ar_arg_text);
-			kau_write(rec, tok);
-		}
-		FD_VNODE1_TOKENS;
-		if (ARG_IS_VALID(kar, ARG_SOCKINFO)) {
-				tok = kau_to_socket(&ar->ar_arg_sockinfo);
-				kau_write(rec, tok);
-		}
+	case AUE_NFSRPC_COMMIT:
 		break;
 	
 	case AUE_NULL:
@@ -1834,6 +1844,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		kau_write(rec, subj_tok);
 		kau_free(rec);
 		return (BSM_NOAUDIT);
+	}
+	/*
+	 * Write common tokens for NFS RPCs.
+	 */
+	if (kar->kaudit_record_type == AUDIT_NFSRPC_RECORD) {
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
 	}
 
 	if (jail_tok != NULL)

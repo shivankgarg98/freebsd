@@ -164,11 +164,14 @@ void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
 void audit_nfsarg_fd(struct kaudit_record *ar, int fd);
+void audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode);
 void audit_nfsarg_value(struct kaudit_record *ar, long value);
 void audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol);
 void audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa);
 void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 void audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp);
+void audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath);
 void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
@@ -439,6 +442,11 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 		audit_nfsarg_fd((nd)->nd_ar, (fd));			\
 } while (0)
 
+#define	AUDIT_NFSARG_MODE(nd, mode) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_mode((nd)->nd_ar, (mode));			\
+} while (0)
+
 #define	AUDIT_NFSARG_VALUE(nd, value) do {				\
 	if (AUDITING_NFS(nd))						\
 		audit_nfsarg_value((nd)->nd_ar, (value));		\
@@ -462,6 +470,11 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 #define	AUDIT_NFSARG_FILE(nd, p, fp) do {				\
 	if (AUDITING_NFS(nd))						\
 		audit_nfsarg_file((nd)->nd_ar, (p), (fp));		\
+} while (0)
+
+#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath) do {			\
+	if (AUDITING_NFS(nd))					\
+		audit_nfsarg_upath1_vp((nd)->nd_ar, (td), (rdir), (cdir), (upath));	\
 } while (0)
 
 #define	AUDIT_NFSARG_TEXT(nd, text) do {				\
@@ -545,11 +558,13 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
 #define	AUDIT_NFSARG_FD(nd, fd)
+#define	AUDIT_NFSARG_MODE(nd, mode)
 #define	AUDIT_NFSARG_VALUE(nd, value)
 #define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol)
 #define	AUDIT_NFSARG_NETSOCKADDR(nd, sa)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
 #define	AUDIT_NFSARG_FILE(nd, p, fp)
+#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath)
 #define	AUDIT_NFSARG_TEXT(nd, text)
 
 #define AUDIT_NFSRPC_ENTER(nd, td)	0
