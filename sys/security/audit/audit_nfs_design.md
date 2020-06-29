@@ -80,7 +80,7 @@ We can't use td_ar field of struct thread for storing the audit record. Therefor
 for logging the client info which should I choose?
 2. audit_bsm: /* XXX Need to handle ARG_SADDRINET6 */
 Why it's not handled in audit? Is there any challenge in handling the case similiar to IPv4.
-3. to do audit preselection. currently it is hardcoded both while enter and commit
+3. NFS RPC Service extracts the info(that interests us, example- path) at some later point in the function and do error checking in initial stage. This make is difficult to log the complete info, as the flow may be sent to out/return if there is an error at initial stage. It may cause the loss of info, we may want to log.
 
 #### References and Study material
 1. Oracle Docs: https://docs.oracle.com/cd/E19683-01/806-4078/6jd6cjs6k/index.html, https://docs.oracle.com/cd/E19109-01/tsolaris8/816-1049/index.html

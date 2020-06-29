@@ -1816,10 +1816,19 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 	case AUE_NFSRPC_CREATE:
+		UPATH1_TOKENS;
+		break;
 	case AUE_NFSRPC_MKDIR:
+		UPATH1_TOKENS;
+		break;
 	case AUE_NFSRPC_SYMLINK:
+		break;
 	case AUE_NFSRPC_MKNOD:
+		UPATH1_TOKENS;
+		break;
 	case AUE_NFSRPC_REMOVE:
+		UPATH1_TOKENS;
+		break;
 	case AUE_NFSRPC_RMDIR:
 	case AUE_NFSRPC_RENAME:
 	case AUE_NFSRPC_LINK:

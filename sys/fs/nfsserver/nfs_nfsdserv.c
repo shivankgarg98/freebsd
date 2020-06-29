@@ -236,6 +236,7 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	struct thread *p = curthread;
 
 	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_repstat)
 		goto out;
 
@@ -361,6 +362,8 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
+
+	AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, preat_ret, &nva2, postat_ret, &nva);
@@ -1106,6 +1109,15 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+
+	/*
+	 * TODO: also audit log flags and mode. Identify necessary info
+	 * but there is a problem here. mode etc. are extracted from request
+	 * at later stage. In some case of error, it may completely miss out
+	 * those info.
+	 */
+
 	if (error)
 		goto nfsmout;
 	if (!nd->nd_repstat) {
@@ -1317,6 +1329,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, cnflags | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
 	if (error)
 		goto nfsmout;
 	if (!nd->nd_repstat) {
@@ -1488,6 +1501,7 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
 	if (error) {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -1964,6 +1978,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | SAVENAME | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
 	if (error)
 		goto nfsmout;
 	if (!nd->nd_repstat) {
