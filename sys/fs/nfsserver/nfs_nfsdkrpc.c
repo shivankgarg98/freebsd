@@ -383,11 +383,17 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (cacherep == RC_DOIT) {
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			nd->nd_xprt = xprt;
-		AUDIT_NFSRPC_ENTER(nd,curthread);
-		AUDIT_NFSARG_FD(nd, 729);
-		AUDIT_NFSARG_NETSOCKADDR(nd,nd->nd_nam);
+		AUDIT_NFSRPC_ENTER(nd, curthread);
+		/*
+		 * TODO: nd_nam and nd_nam2 are two different cases for TCP and UDP respectively.
+		 * TO confirm when what will be audited.
+		 */
+		if (nd->nd_nam2 != NULL)
+			AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam2);
+		else
+			AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
-		AUDIT_NFSRPC_EXIT(nd,curthread);
+		AUDIT_NFSRPC_EXIT(nd, curthread);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {

@@ -1799,6 +1799,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		UPATH1_TOKENS;
 		break;
 	case AUE_NFSRPC_ACCESS:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1816,28 +1820,64 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 	case AUE_NFSRPC_CREATE:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
 		UPATH1_TOKENS;
 		break;
 	case AUE_NFSRPC_MKDIR:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
 		UPATH1_TOKENS;
 		break;
 	case AUE_NFSRPC_SYMLINK:
+		/*TODO: audit more info*/
+		UPATH1_TOKENS;
 		break;
 	case AUE_NFSRPC_MKNOD:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_DEV)) {
+			tok = au_to_arg32(3, "dev", ar->ar_arg_dev);
+			kau_write(rec, tok);
+		}
 		UPATH1_TOKENS;
 		break;
 	case AUE_NFSRPC_REMOVE:
+	case AUE_NFSRPC_RMDIR:
+		UPATH1_VNODE1_TOKENS;
+		break;
+	case AUE_NFSRPC_RENAME:
+		UPATH1_TOKENS;
+		UPATH2_TOKENS;
+		break;
+	case AUE_NFSRPC_LINK:
+		/*TODO: audit more info*/
 		UPATH1_TOKENS;
 		break;
-	case AUE_NFSRPC_RMDIR:
-	case AUE_NFSRPC_RENAME:
-	case AUE_NFSRPC_LINK:
 	case AUE_NFSRPC_READDIR:
 	case AUE_NFSRPC_READDIRPLUS:
 	case AUE_NFSRPC_FSSTAT:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
 	case AUE_NFSRPC_FSINFO:
+		break;
 	case AUE_NFSRPC_PATHCONF:
+		/*TODO*/
+		break;
 	case AUE_NFSRPC_COMMIT:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
 		break;
 	
 	case AUE_NULL:

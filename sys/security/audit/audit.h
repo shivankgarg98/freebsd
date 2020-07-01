@@ -170,7 +170,10 @@ void audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int
 void audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa);
 void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 void audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp);
+void audit_nfsarg_dev(struct kaudit_record *ar, int dev);
 void audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath);
+void audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath);
 void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 /*
@@ -472,9 +475,19 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 		audit_nfsarg_file((nd)->nd_ar, (p), (fp));		\
 } while (0)
 
-#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath) do {			\
-	if (AUDITING_NFS(nd))					\
+#define	AUDIT_NFSARG_DEV(nd, dev) do {					\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_dev((nd)->nd_ar, (dev));			\
+} while (0)
+
+#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath) do {		\
+	if (AUDITING_NFS(nd))						\
 		audit_nfsarg_upath1_vp((nd)->nd_ar, (td), (rdir), (cdir), (upath));	\
+} while (0)
+
+#define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath) do {		\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_upath2_vp((nd)->nd_ar, (td), (rdir), (cdir), (upath));	\
 } while (0)
 
 #define	AUDIT_NFSARG_TEXT(nd, text) do {				\
@@ -564,7 +577,9 @@ void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
 #define	AUDIT_NFSARG_NETSOCKADDR(nd, sa)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
 #define	AUDIT_NFSARG_FILE(nd, p, fp)
+#define	AUDIT_NFSARG_DEV(nd, dev)
 #define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath)
+#define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath)
 #define	AUDIT_NFSARG_TEXT(nd, text)
 
 #define AUDIT_NFSRPC_ENTER(nd, td)	0

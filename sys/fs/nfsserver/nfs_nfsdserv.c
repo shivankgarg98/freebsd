@@ -122,6 +122,8 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	accmode_t deletebit;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, 1, &nva);
 		goto out;
@@ -914,7 +916,7 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsattrbit_t attrbits;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd,vp);
+	AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, forat_ret, &forat, aftat_ret, &nva);
@@ -1130,6 +1132,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSVNO_SETATTRVAL(&nva, type, vtyp);
 			NFSVNO_SETATTRVAL(&nva, mode,
 			    nfstov_mode(sp->sa_mode));
+			AUDIT_NFSARG_MODE(nd, nva.na_mode);
 			switch (nva.na_type) {
 			case VREG:
 				tsize = fxdr_unsigned(int32_t, sp->sa_size);
@@ -1347,6 +1350,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 			major = fxdr_unsigned(u_int32_t, *tl++);
 			minor = fxdr_unsigned(u_int32_t, *tl);
 			nva.na_rdev = NFSMAKEDEV(major, minor);
+			AUDIT_NFSARG_DEV(nd, nva.na_rdev);
 		}
 	}
 
@@ -1381,6 +1385,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 		else
 			nva.na_mode = 0400;
 	}
+	AUDIT_NFSARG_MODE(nd, nva.na_mode);
 
 	if (vtyp == VDIR)
 		named.ni_cnd.cn_flags |= WILLBEDIR;
@@ -1580,7 +1585,6 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	u_long *hashp;
 	fhandle_t fh;
 	struct thread *p = curthread;
-	printf("NFS RENAME SERVICE\n");
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
 		nfsrv_wcc(nd, tdirfor_ret, &tdirfor, tdiraft_ret, &tdiraft);
@@ -1593,6 +1597,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	NFSNAMEICNDSET(&fromnd.ni_cnd, nd->nd_cred, DELETE, WANTPARENT | SAVESTART);
 	nfsvno_setpathbuf(&fromnd, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &fromnd.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, fromnd.ni_rootdir, dp, fromnd.ni_cnd.cn_pnbuf);
 	if (error) {
 		vput(dp);
 		if (todp)
@@ -1655,6 +1660,9 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	nfsvno_setpathbuf(&tond, &tbufp, &hashp);
 	if (!nd->nd_repstat) {
 		error = nfsrv_parsename(nd, tbufp, hashp, &tond.ni_pathlen);
+
+		AUDIT_NFSARG_UPATH2_VP(nd, p, tond.ni_rootdir, tdp, tond.ni_cnd.cn_pnbuf);
+
 		if (error) {
 			if (tdp)
 				vrele(tdp);
@@ -1784,6 +1792,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+		/*TODO: audit incompelete */
 		if (error) {
 			vrele(vp);
 			if (dp)
@@ -1860,6 +1870,8 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | SAVESTART | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	/*TODO: audit incompelte*/
 	if (!error && !nd->nd_repstat)
 		error = nfsvno_getsymlink(nd, &nva, p, &pathcp, &pathlen);
 	if (error) {
@@ -1969,7 +1981,6 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
-	printf("NFS CREAT NEW DIR\n");
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
@@ -1992,6 +2003,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 			nva.na_mode = nfstov_mode(*tl++);
 		}
 	}
+	AUDIT_NFSARG_MODE(nd, nva.na_mode);
 	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
 	} else {
@@ -2102,11 +2114,12 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t off;
 	struct thread *p = curthread;
 
-       if (nd->nd_repstat) {
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
+	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
 		goto out;
 	}
-
 	/* Return NFSERR_ISDIR in NFSv4 when commit on a directory. */
 	if (vp->v_type != VREG) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -2161,11 +2174,14 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 	u_quad_t tval;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	sf = NULL;
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
+
 	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd, p, 1, NULL);
@@ -2270,7 +2286,7 @@ nfsrvd_pathconf(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = nfsvno_pathconf(vp, _PC_NAME_MAX, &namemax,
 		    nd->nd_cred, p);
 	if (!nd->nd_repstat)
-		nd->nd_repstat=nfsvno_pathconf(vp, _PC_CHOWN_RESTRICTED,
+		nd->nd_repstat = nfsvno_pathconf(vp, _PC_CHOWN_RESTRICTED,
 		    &chownres, nd->nd_cred, p);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsvno_pathconf(vp, _PC_NO_TRUNC, &notrunc,

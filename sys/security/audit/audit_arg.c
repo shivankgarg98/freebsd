@@ -1157,6 +1157,18 @@ audit_nfsarg_file(struct kaudit_record *ar, struct proc *p, struct file *fp)
 		break;
 	}
 }
+
+void
+audit_nfsarg_dev(struct kaudit_record *ar, int dev)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_dev = dev;
+	ARG_SET_VALID(ar, ARG_DEV);
+}
+
 void
 audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
@@ -1167,6 +1179,18 @@ audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
 
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
 	ARG_SET_VALID(ar, ARG_UPATH1);
+}
+
+void
+audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath)
+{
+
+	if (ar == NULL)
+		return;
+
+	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
+	ARG_SET_VALID(ar, ARG_UPATH2);
 }
 
 void
