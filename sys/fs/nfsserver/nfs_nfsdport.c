@@ -1884,11 +1884,13 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	int is_ufs;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_flag & ND_NFSV2) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		off = fxdr_unsigned(u_quad_t, *tl++);
@@ -2139,11 +2141,12 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED);
 	off = fxdr_hyper(tl);
 	toff = off;

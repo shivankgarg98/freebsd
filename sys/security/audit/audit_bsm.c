@@ -1796,13 +1796,14 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUR_NFSRPC_LOOKUP:
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_ACCESS:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
 		}
+		/* XXX: argument # in this case? */
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1810,8 +1811,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSRPC_READLINK:
-		/*TODO: save path and vnode token*/
-		break;
 	case AUE_NFSRPC_READ:
 	case AUE_NFSRPC_WRITE:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
@@ -1820,66 +1819,49 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 	case AUE_NFSRPC_CREATE:
-		if (ARG_IS_VALID(kar, ARG_MODE)) {
-			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
-			kau_write(rec, tok);
-		}
-		UPATH1_TOKENS;
-		break;
 	case AUE_NFSRPC_MKDIR:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
 		}
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_SYMLINK:
-		/*TODO: audit more info*/
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_MKNOD:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
-			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
 		}
 		if (ARG_IS_VALID(kar, ARG_DEV)) {
 			tok = au_to_arg32(3, "dev", ar->ar_arg_dev);
 			kau_write(rec, tok);
 		}
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_REMOVE:
 	case AUE_NFSRPC_RMDIR:
 		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_RENAME:
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		UPATH2_TOKENS;
 		break;
 	case AUE_NFSRPC_LINK:
-		/*TODO: audit more info*/
-		UPATH1_TOKENS;
+		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_READDIR:
 	case AUE_NFSRPC_READDIRPLUS:
 	case AUE_NFSRPC_FSSTAT:
-		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
-			tok = au_to_attr32(&ar->ar_arg_vnode1);
-			kau_write(rec, tok);
-		}
-		break;
 	case AUE_NFSRPC_FSINFO:
-		break;
 	case AUE_NFSRPC_PATHCONF:
-		/*TODO*/
-		break;
 	case AUE_NFSRPC_COMMIT:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
 		}
 		break;
-	
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",

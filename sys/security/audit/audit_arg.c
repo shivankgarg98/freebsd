@@ -1093,12 +1093,27 @@ void
 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 {
 	int error;
+	bool islocked = false;
 
+	KASSERT(vp != NULL, ("audit_nfsarg_vnode1: vp == NULL"));
+	/* page fault panic occur if vp == NULL*/
 	if (ar == NULL)
 		return;
+
+	if (VOP_ISLOCKED(vp))
+		islocked = true;
 	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
 	ARG_CLEAR_VALID(ar, ARG_VNODE1);
+
+	if (!islocked) {
+		vref(vp);
+		printf("NFS RPC UNLOCKED VNODE came for audit\n");
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+	}
 	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
+	if (!islocked) {
+		vput(vp);
+	}
 	if (error == 0)
 		ARG_SET_VALID(ar, ARG_VNODE1);
 }
