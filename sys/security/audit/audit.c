@@ -815,6 +815,10 @@ audit_syscall_exit(int error, struct thread *td)
 	td->td_pflags &= ~TDP_AUDITREC;
 }
 
+/*
+ * audit_nfsrpc_enter is called before NFS server is about to do a RPC.
+ * This function is very similiar to audit_syscall_enter.
+ */
 void
 audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 {
@@ -848,6 +852,16 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	class = au_event_class(event);
 
 	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
+		/*
+		 * If we're out of space and need to suspend unprivileged
+		 * processes, do that here rather than trying to allocate
+		 * another audit record.
+		 */
+		if (audit_in_failure &&
+		    priv_check(td, PRIV_AUDIT_FAILSTOP) != 0) {
+			cv_wait(&audit_fail_cv, &audit_mtx);
+			panic("audit_failing_stop: thread continued");
+		}
 		record_needed = 1;
 	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
 		record_needed = 1;
@@ -862,6 +876,10 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 		nd->nd_ar = NULL;
 }
 
+/*
+ * audit_nfsrpc_exit is called after NFS server has completed a RPC call.
+ * This function is very similiar to audit_syscall_exit.
+ */
 void
 audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)
 {
