@@ -2284,7 +2284,6 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	struct mtx *vlp;
 	int error;
 	bool islocked = false;
-
 	vlp = VP2VNODELOCK(*vp);
 	mtx_lock(vlp);
 	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
@@ -2507,6 +2506,10 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	if (!islocked)
 		vref(vp);
 	else
+		/* XXX vrefl expects the interlock to already be held.
+		 * Do we need to use it instead of vref in this case(it is vnode lock)??
+		 * Interlock notes: VI_LOCK & VI_UNLOCK are used and flags are VI Flags here
+		 */
 		vrefl(vp);
 	slash_prefixed = false;
 	if (vp->v_type != VDIR) {

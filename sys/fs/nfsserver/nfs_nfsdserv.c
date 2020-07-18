@@ -237,7 +237,13 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	accmode_t accmode;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	/*
+	 * XXX: in some cases the vnode passed can be NULL, like the case I
+	 * for getattr_failure. So, It's better to check if the vnode is NULL
+	 * to prevent panic in audit_arg.c
+	 */ 
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat)
 		goto out;
