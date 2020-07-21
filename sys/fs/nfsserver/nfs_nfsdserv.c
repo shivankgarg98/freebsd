@@ -122,7 +122,8 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	accmode_t deletebit;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, 1, &nva);
@@ -371,7 +372,8 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, preat_ret, &nva2, postat_ret, &nva);
@@ -685,7 +687,8 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr nva;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
@@ -736,7 +739,8 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 	
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
@@ -925,7 +929,8 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsattrbit_t attrbits;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, forat_ret, &forat, aftat_ret, &nva);
@@ -1759,7 +1764,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	u_long *hashp;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
@@ -2118,7 +2124,8 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t off;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
@@ -2178,7 +2185,8 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 	u_quad_t tval;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	sf = NULL;
 	if (nd->nd_repstat) {
@@ -2240,7 +2248,8 @@ nfsrvd_fsinfo(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr at;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
@@ -2281,7 +2290,8 @@ nfsrvd_pathconf(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr at;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;

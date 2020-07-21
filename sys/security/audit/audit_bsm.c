@@ -1795,7 +1795,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
-	case AUR_NFSRPC_LOOKUP:
+	case AUE_NFSRPC_LOOKUP:
 		UPATH1_VNODE1_TOKENS;
 		break;
 	case AUE_NFSRPC_ACCESS:

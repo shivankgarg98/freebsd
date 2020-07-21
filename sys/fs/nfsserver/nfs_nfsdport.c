@@ -1884,7 +1884,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	int is_ufs;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
@@ -2141,7 +2142,8 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
 
-	AUDIT_NFSARG_VNODE1(nd, vp);
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
