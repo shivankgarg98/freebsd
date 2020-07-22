@@ -619,7 +619,7 @@
 #
 43266:AUE_NFSRPC_GETATTR:nfsrvd_getattr:nfs
 43267:AUE_NFSRPC_SETATTR:nfsrvd_setattr:nfs
-43268:AUR_NFSRPC_LOOKUP:nfsrvd_lookup:nfs
+43268:AUE_NFSRPC_LOOKUP:nfsrvd_lookup:nfs
 43269:AUE_NFSRPC_ACCESS:nfsrvd_access:nfs
 43270:AUE_NFSRPC_READLINK:nfsrvd_readlink:nfs
 43271:AUE_NFSRPC_READ:nfsrvd_read:nfs

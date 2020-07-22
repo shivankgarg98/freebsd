@@ -49,16 +49,21 @@
 #error "no user-serviceable parts inside"
 #endif
 
+/*
+ * These defintion are required for NFS part and including their NFS header
+ * file cause conflict with other structure defintions.
+ */
+#ifndef NFSMUTEX_T
+#define	NFSMUTEX_T		struct mtx
+#endif
+#ifndef NFSOCKADDR_T
+#define	NFSSOCKADDR_T	struct sockaddr *
+#endif
+
 #include <bsm/audit.h>
 
 #include <sys/file.h>
 #include <sys/sysctl.h>
-
-/* These defintion are required for NFS part and including their NFS header
- * file cause conflict with some structure defintion.
- */
-#define	NFSMUTEX_T		struct mtx
-#define	NFSSOCKADDR_T	struct sockaddr *
 
 #include <rpc/rpc.h>
 #include <sys/mount.h>
@@ -574,8 +579,8 @@ void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_NFSARG_VALUE(nd, value)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
 
-#define AUDIT_NFSRPC_ENTER(nd, td)	0
-#define AUDIT_NFSRPC_EXIT(nd ,td)
+#define	AUDIT_NFSRPC_ENTER(nd, td)	0
+#define	AUDIT_NFSRPC_EXIT(nd, td)
 
 #define	AUDIT_SYSCLOSE(p, fd)
 

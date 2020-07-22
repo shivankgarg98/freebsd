@@ -525,8 +525,7 @@ audit_free(struct kaudit_record *ar)
 		uma_zfree(audit_nfsrecord_zone, ar);
 		break;
 	default:
-		printf("invalid case\n");
-		break;
+		panic("audit_free: invalid case");
 	}
 }
 
@@ -833,15 +832,17 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
 	    ("audit_nfsrpc_enter: ND_AUDITREC set"));
 
-	//event = 43265 + nd->nd_procnum; /*simple linear mapping*/
 	event = nfsrv_auevent[nd->nd_procnum];
+	/* NFS Procedure NULL do nothing. So, no need to audit this event. */
+	if (event == AUE_NULL)
+		return;
 
 	/* I'm unable to understand how auid is assigned and its role exactly.
 	 * Somehow, it is assigned as AU_DEFAUDITID. Therefore, aumask is assigned
 	 * as that non-attr event.
 	 * Ideally, it should come under attr events. Right?
 	 */
-	memcpy(&(nd->nd_cred->cr_audit),&(td->td_ucred->cr_audit),
+	memcpy(&(nd->nd_cred->cr_audit), &(td->td_ucred->cr_audit),
 	    sizeof(struct auditinfo_addr));
 	auid = td->td_ucred->cr_audit.ai_auid;
 	if (auid == AU_DEFAUDITID) {
@@ -877,8 +878,8 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 }
 
 /*
- * audit_nfsrpc_exit is called after NFS server has completed a RPC call.
- * This function is very similiar to audit_syscall_exit.
+ * audit_nfsrpc_exit is called each time after NFS server has completed a
+ * RPC call. This function is very similiar to audit_syscall_exit.
  */
 void
 audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)

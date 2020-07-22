@@ -1886,12 +1886,10 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-
 	if (nd->nd_flag & ND_NFSV2) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		off = fxdr_unsigned(u_quad_t, *tl++);
@@ -2144,7 +2142,6 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;

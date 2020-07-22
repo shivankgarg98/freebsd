@@ -239,16 +239,14 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	struct thread *p = curthread;
 
 	/*
-	 * XXX: in some cases the vnode passed can be NULL, like the case I
-	 * for getattr_failure. So, It's better to check if the vnode is NULL
-	 * to prevent panic in audit_arg.c
+	 * XXX: in some cases the vnode passed can be NULL. For instance,
+	 * if getattr is called for a file, after it is removed. Calling
+	 * AUDIT_NFSARG on it may cause problem later.
 	 */ 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat)
 		goto out;
-
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		if (error) {
@@ -374,7 +372,6 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, preat_ret, &nva2, postat_ret, &nva);
 		goto out;
@@ -689,7 +686,6 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
@@ -741,7 +737,6 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
@@ -931,7 +926,6 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, forat_ret, &forat, aftat_ret, &nva);
 		goto out;
@@ -2126,11 +2120,11 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
 		goto out;
 	}
+
 	/* Return NFSERR_ISDIR in NFSv4 when commit on a directory. */
 	if (vp->v_type != VREG) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -2187,13 +2181,11 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	sf = NULL;
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
-
 	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd, p, 1, NULL);

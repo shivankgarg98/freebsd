@@ -1049,7 +1049,7 @@ audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
 {
 
 	KASSERT(sa != NULL, ("audit_nfsarg_sockaddr: sa == NULL"));
-	
+
 	if (ar == NULL)
 		return;
 

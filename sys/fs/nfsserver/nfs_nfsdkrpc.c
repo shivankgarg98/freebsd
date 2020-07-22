@@ -336,7 +336,7 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	} else {
 		isdgram = 1;
 	}
-	
+
 	/*
 	 * Two cases:
 	 * 1 - For NFSv2 over UDP, if we are near our malloc/mget

@@ -473,7 +473,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	au_tid_t tid;
 	struct audit_record *ar;
 	int ctr;
-	
+
 	KASSERT(kar != NULL, ("kaudit_to_bsm: kar == NULL"));
 
 	*pau = NULL;
@@ -1798,6 +1798,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSRPC_LOOKUP:
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_ACCESS:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
@@ -1818,6 +1819,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		break;
+
 	case AUE_NFSRPC_CREATE:
 	case AUE_NFSRPC_MKDIR:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
@@ -1826,9 +1828,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_SYMLINK:
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_MKNOD:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
@@ -1840,17 +1844,21 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_REMOVE:
 	case AUE_NFSRPC_RMDIR:
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_RENAME:
 		UPATH1_VNODE1_TOKENS;
 		UPATH2_TOKENS;
 		break;
+
 	case AUE_NFSRPC_LINK:
 		UPATH1_VNODE1_TOKENS;
 		break;
+
 	case AUE_NFSRPC_READDIR:
 	case AUE_NFSRPC_READDIRPLUS:
 	case AUE_NFSRPC_FSSTAT:
@@ -1862,6 +1870,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 			kau_write(rec, tok);
 		}
 		break;
+
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",

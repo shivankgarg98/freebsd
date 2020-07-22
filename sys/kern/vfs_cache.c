@@ -2284,8 +2284,11 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	struct mtx *vlp;
 	int error;
 	bool islocked = false;
+
 	vlp = VP2VNODELOCK(*vp);
 	mtx_lock(vlp);
+	if (VOP_ISLOCKED(*vp))
+		islocked = true;
 	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
 		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
 			break;
@@ -2293,7 +2296,10 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	if (ncp != NULL) {
 		if (*buflen < ncp->nc_nlen) {
 			mtx_unlock(vlp);
-			vrele(*vp);
+			if(!islocked)
+				vrele(*vp);
+			else
+				vunref(*vp);
 			counter_u64_add(numfullpathfail4, 1);
 			error = ENOMEM;
 			SDT_PROBE3(vfs, namecache, fullpath, return, error,
@@ -2314,8 +2320,6 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	SDT_PROBE1(vfs, namecache, fullpath, miss, vp);
 
 	mtx_unlock(vlp);
-	if (VOP_ISLOCKED(*vp))
-		islocked = true;
 	if (!islocked)
 		vn_lock(*vp, LK_SHARED | LK_RETRY);
 	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
@@ -2470,7 +2474,6 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		vrele(vp);
 	else
 		vunref(vp);
-
 	*retbuf = buf + buflen;
 	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, *retbuf);
 	*len -= buflen;
@@ -2502,15 +2505,14 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	orig_buflen = *buflen;
 	if (VOP_ISLOCKED(vp))
 		islocked = true;
-
 	if (!islocked)
 		vref(vp);
-	else
-		/* XXX vrefl expects the interlock to already be held.
+	/* XXX vrefl expects the interlock to already be held.
 		 * Do we need to use it instead of vref in this case(it is vnode lock)??
 		 * Interlock notes: VI_LOCK & VI_UNLOCK are used and flags are VI Flags here
 		 */
-		vrefl(vp);
+	//else
+	//	vrefl(vp);
 	slash_prefixed = false;
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
