@@ -2283,12 +2283,9 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	struct namecache *ncp;
 	struct mtx *vlp;
 	int error;
-	bool islocked = false;
 
 	vlp = VP2VNODELOCK(*vp);
 	mtx_lock(vlp);
-	if (VOP_ISLOCKED(*vp))
-		islocked = true;
 	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
 		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
 			break;
@@ -2296,10 +2293,7 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	if (ncp != NULL) {
 		if (*buflen < ncp->nc_nlen) {
 			mtx_unlock(vlp);
-			if(!islocked)
-				vrele(*vp);
-			else
-				vunref(*vp);
+			vrele(*vp);
 			counter_u64_add(numfullpathfail4, 1);
 			error = ENOMEM;
 			SDT_PROBE3(vfs, namecache, fullpath, return, error,
@@ -2320,13 +2314,9 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	SDT_PROBE1(vfs, namecache, fullpath, miss, vp);
 
 	mtx_unlock(vlp);
-	if (!islocked)
-		vn_lock(*vp, LK_SHARED | LK_RETRY);
+	vn_lock(*vp, LK_SHARED | LK_RETRY);
 	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
-	if (!islocked)
-		vput(*vp);
-	else
-		vunref(*vp);
+	vput(*vp);
 	if (error) {
 		counter_u64_add(numfullpathfail2, 1);
 		SDT_PROBE3(vfs, namecache, fullpath, return,  error, vp, NULL);
@@ -2367,13 +2357,9 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	struct vnode *vp1;
 	size_t buflen;
 	int error;
-	bool islocked = false;
 
 	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 	VNPASS(vp->v_usecount > 0, vp);
-
-	if (VOP_ISLOCKED(vp))
-		islocked = true;
 
 	buflen = *len;
 
@@ -2395,8 +2381,7 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		 * without obtaining the vnode lock.
 		 */
 		if ((vp->v_vflag & VV_ROOT) != 0) {
-			if (!islocked)
-				vn_lock(vp, LK_RETRY | LK_SHARED);
+			vn_lock(vp, LK_RETRY | LK_SHARED);
 
 			/*
 			 * With the vnode locked, check for races with
@@ -2409,10 +2394,7 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			if (VN_IS_DOOMED(vp) ||
 			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
 			    vp1->v_mountedhere != vp->v_mount) {
-				if (!islocked)
-					vput(vp);
-				else
-					vunref(vp);
+				vput(vp);
 				error = ENOENT;
 				SDT_PROBE3(vfs, namecache, fullpath, return,
 				    error, vp, NULL);
@@ -2420,18 +2402,12 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			}
 
 			vref(vp1);
-			if (!islocked)
-				vput(vp);
-			else
-				vunref(vp);
+			vput(vp);
 			vp = vp1;
 			continue;
 		}
 		if (vp->v_type != VDIR) {
-			if (!islocked)
-				vrele(vp);
-			else
-				vunref(vp);
+			vrele(vp);
 			counter_u64_add(numfullpathfail1, 1);
 			error = ENOTDIR;
 			SDT_PROBE3(vfs, namecache, fullpath, return,
@@ -2442,10 +2418,7 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (error)
 			break;
 		if (buflen == 0) {
-			if (!islocked)
-				vrele(vp);
-			else
-				vunref(vp);
+			vrele(vp);
 			error = ENOMEM;
 			SDT_PROBE3(vfs, namecache, fullpath, return, error,
 			    startvp, NULL);
@@ -2458,10 +2431,7 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		return (error);
 	if (!slash_prefixed) {
 		if (buflen == 0) {
-			if (!islocked)
-				vrele(vp);
-			else
-				vunref(vp);
+			vrele(vp);
 			counter_u64_add(numfullpathfail4, 1);
 			SDT_PROBE3(vfs, namecache, fullpath, return, ENOMEM,
 			    startvp, NULL);
@@ -2470,10 +2440,8 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		buf[--buflen] = '/';
 	}
 	counter_u64_add(numfullpathfound, 1);
-	if (!islocked)
-		vrele(vp);
-	else
-		vunref(vp);
+	vrele(vp);
+
 	*retbuf = buf + buflen;
 	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, *retbuf);
 	*len -= buflen;
@@ -2497,22 +2465,13 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	size_t orig_buflen;
 	bool slash_prefixed;
 	int error;
-	bool islocked = false;
 
 	if (*buflen < 2)
 		return (EINVAL);
 
 	orig_buflen = *buflen;
-	if (VOP_ISLOCKED(vp))
-		islocked = true;
-	if (!islocked)
-		vref(vp);
-	/* XXX vrefl expects the interlock to already be held.
-		 * Do we need to use it instead of vref in this case(it is vnode lock)??
-		 * Interlock notes: VI_LOCK & VI_UNLOCK are used and flags are VI Flags here
-		 */
-	//else
-	//	vrefl(vp);
+
+	vref(vp);
 	slash_prefixed = false;
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
@@ -2521,10 +2480,7 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (error)
 			return (error);
 		if (*buflen == 0) {
-			if (!islocked)
-				vrele(vp);
-			else
-				vunref(vp);
+			vrele(vp);
 			return (ENOMEM);
 		}
 		*buflen -= 1;

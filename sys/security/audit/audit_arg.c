@@ -1102,11 +1102,18 @@ void
 audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
 {
-
+	int islocked = 0;
+	
 	if (ar == NULL)
 		return;
 
+	islocked = VOP_ISLOCKED(cdir);
+	if (islocked)
+		VOP_UNLOCK(cdir);
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
+	if (islocked)
+		vn_lock(cdir, islocked | LK_RETRY);
+
 	ARG_SET_VALID(ar, ARG_UPATH1);
 }
 
@@ -1114,11 +1121,19 @@ void
 audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
 {
+	int islocked = 0;
 
 	if (ar == NULL)
 		return;
 
+	islocked = VOP_ISLOCKED(cdir);
+	if (islocked)
+		VOP_UNLOCK(cdir);
+
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
+	if (islocked)
+		vn_lock(cdir, islocked | LK_RETRY);
+
 	ARG_SET_VALID(ar, ARG_UPATH2);
 }
 
