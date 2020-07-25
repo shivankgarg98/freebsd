@@ -191,12 +191,9 @@ au_evclassmap_init(void)
 	}
 
 	/*
-	 * XXX Do I need to initiliaze the db for NFS RPC events,
-	 * because they are anyway inserted by sys_auditon as defined
-	 * in audit_events
+	 * Set up the initial event to class mapping for NFS RPC calls.
 	 */
 	for (i = 0; i < NFS_V3NPROCS; i++) {
-		/* i also refer to RPC procedure number. */
 		au_evclassmap_insert(nfsrv_auevent[i], 0);
 	}
 }

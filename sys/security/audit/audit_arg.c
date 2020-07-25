@@ -1067,7 +1067,8 @@ audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
 }
 
 void
-audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol)
+audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype,
+    int soprotocol)
 {
 
 	if (ar == NULL)
@@ -1103,11 +1104,17 @@ audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
 {
 	int islocked = 0;
-	
+
 	if (ar == NULL)
 		return;
 
 	islocked = VOP_ISLOCKED(cdir);
+	/* TODO: Correct this.
+	 * XXX: Unlocking the vnode for making the UPATH is not the correct
+	 * way but passing locked vnode was making too much complication in
+	 * vfs_cache.c. Did this for now to stop the kernel from crashing and
+	 * panicking.
+	 */
 	if (islocked)
 		VOP_UNLOCK(cdir);
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
@@ -1129,7 +1136,6 @@ audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
 	islocked = VOP_ISLOCKED(cdir);
 	if (islocked)
 		VOP_UNLOCK(cdir);
-
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
 	if (islocked)
 		vn_lock(cdir, islocked | LK_RETRY);
@@ -1154,8 +1160,9 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 	int error;
 	bool islocked = false;
 
+	/* Page fault panic occur if vnode *vp is NULL. */
 	KASSERT(vp != NULL, ("audit_nfsarg_vnode1: vp == NULL"));
-	/* page fault panic occur if vp == NULL*/
+
 	if (ar == NULL)
 		return;
 
@@ -1163,10 +1170,9 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 		islocked = true;
 	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
 	ARG_CLEAR_VALID(ar, ARG_VNODE1);
-
+	/* Hold the vnode lock for VOP_GETTR call. */
 	if (!islocked) {
 		vref(vp);
-		printf("NFS RPC UNLOCKED VNODE came for audit\n");
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 	}
 	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);

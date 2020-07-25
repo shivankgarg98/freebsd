@@ -329,7 +329,7 @@ audit_record_dtor(void *mem, int size, void *arg)
 
 /*
  * Construct an audit record for the passed nfs server
- * request descritption
+ * request description.
  */
 static int
 audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
@@ -360,7 +360,7 @@ audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
 	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
 	ar->k_ar.ar_jailname[0] = '\0';
-	
+
 	return (0);
 }
 
@@ -485,10 +485,8 @@ audit_nfs_new(int event, struct nfsrv_descript *nd)
 {
 	struct kaudit_record *ar;
 
-	/*This comment statement becomes untrue in case NFS audit records are
-	 *created. will this create any problem??
-	 */
-	/*
+	/* This below comment statement becomes untrue in case NFS audit
+	 * records are created. Would this create any problem??
 	 * Note: the number of outstanding uncommitted audit records is
 	 * limited to the number of concurrent threads servicing system calls
 	 * in the kernel.
@@ -506,7 +504,7 @@ audit_nfs_new(int event, struct nfsrv_descript *nd)
 	ar = uma_zalloc_arg(audit_nfsrecord_zone, nd, M_WAITOK);
 	ar->k_ar.ar_event = event;
 	ar->kaudit_record_type = AUDIT_NFSRPC_RECORD;
-	
+
 	mtx_lock(&audit_mtx);
 	audit_pre_q_len++;
 	mtx_unlock(&audit_mtx);
@@ -517,13 +515,16 @@ audit_nfs_new(int event, struct nfsrv_descript *nd)
 void
 audit_free(struct kaudit_record *ar)
 {
+
 	switch (ar->kaudit_record_type) {
 	case AUDIT_SYSCALL_RECORD:
 		uma_zfree(audit_record_zone, ar);
 		break;
+
 	case AUDIT_NFSRPC_RECORD:
 		uma_zfree(audit_nfsrecord_zone, ar);
 		break;
+
 	default:
 		panic("audit_free: invalid case");
 	}
@@ -609,7 +610,6 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 	class = au_event_class(event);
 
 	ar->k_ar_commit |= AR_COMMIT_KERNEL;
-	
 	if (au_preselect(event, class, aumask, sorf) != 0)
 		ar->k_ar_commit |= AR_PRESELECT_TRAIL;
 	if (audit_pipe_preselect(auid, event, class, sorf,
@@ -626,6 +626,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 			ar->k_ar_commit |= AR_PRESELECT_DTRACE;
 	}
 #endif
+
 	if ((ar->k_ar_commit & (AR_PRESELECT_TRAIL | AR_PRESELECT_PIPE |
 	    AR_PRESELECT_USER_TRAIL | AR_PRESELECT_USER_PIPE |
 	    AR_PRESELECT_DTRACE)) == 0) {
@@ -650,6 +651,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
+
 	/*
 	 * Constrain the number of committed audit records based on the
 	 * configurable parameter.
@@ -826,7 +828,6 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	au_event_t event;
 	au_id_t auid;
 	int record_needed;
-	/* TODO: check RPC info - some sanity check? */
 
 	KASSERT(nd->nd_ar == NULL, ("audit_nfsrpc_enter: nd->nd_ar != NULL"));
 	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
@@ -837,7 +838,7 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	if (event == AUE_NULL)
 		return;
 
-	/* I'm unable to understand how auid is assigned and its role exactly.
+	/* XXX:  I'm unable to understand how auid is assigned and its role exactly.
 	 * Somehow, it is assigned as AU_DEFAUDITID. Therefore, aumask is assigned
 	 * as that non-attr event.
 	 * Ideally, it should come under attr events. Right?
@@ -851,7 +852,6 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 		aumask = &td->td_ucred->cr_audit.ai_mask;
 	}
 	class = au_event_class(event);
-
 	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
 		/*
 		 * If we're out of space and need to suspend unprivileged

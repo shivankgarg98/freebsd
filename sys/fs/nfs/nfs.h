@@ -312,7 +312,7 @@ struct nfsd_dumplocks {
 struct nfsreferral {
 	u_char		*nfr_srvlist;	/* List of servers */
 	int		nfr_srvcnt;	/* number of servers */
-	struct vnode *		nfr_vp;	/* vnode for referral */
+	struct vnode *	nfr_vp;		/* vnode for referral */
 	uint64_t	nfr_dfileno;	/* assigned dir inode# */
 };
 
@@ -562,33 +562,9 @@ struct nfscred {
 #define	NFSV4ROOT_GEN		1
 
 /*
- * This static array indicates the audit event number corresponding to
- * NFS RPCs
+ * This array indicates the audit event number corresponding to NFS RPCs.
  */
-static u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
-	AUE_NULL,
-	AUE_NFSRPC_GETATTR,
-	AUE_NFSRPC_SETATTR,
-	AUE_NFSRPC_LOOKUP,
-	AUE_NFSRPC_ACCESS,
-	AUE_NFSRPC_READLINK,
-	AUE_NFSRPC_READ,
-	AUE_NFSRPC_WRITE,
-	AUE_NFSRPC_CREATE,
-	AUE_NFSRPC_MKDIR,
-	AUE_NFSRPC_SYMLINK,
-	AUE_NFSRPC_MKNOD,
-	AUE_NFSRPC_REMOVE,
-	AUE_NFSRPC_RMDIR,
-	AUE_NFSRPC_RENAME,
-	AUE_NFSRPC_LINK,
-	AUE_NFSRPC_READDIR,
-	AUE_NFSRPC_READDIRPLUS,
-	AUE_NFSRPC_FSSTAT,
-	AUE_NFSRPC_FSINFO,
-	AUE_NFSRPC_PATHCONF,
-	AUE_NFSRPC_COMMIT,
-};
+extern u_int16_t nfsrv_auevent[NFS_V3NPROCS];
 
 /*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
@@ -702,7 +678,7 @@ struct nfsrv_descript {
 	nfsv4stateid_t		nd_savedcurstateid; /* Saved Current StateID */
 	uint32_t		nd_maxreq;	/* Max. request (session). */
 	uint32_t		nd_maxresp;	/* Max. reply (session). */
-	struct kaudit_record	*nd_ar;	/* Audit record for NFS server */
+	struct kaudit_record	*nd_ar;		/* Audit record for NFS server */
 };
 
 #define	nd_princlen	nd_gssnamelen

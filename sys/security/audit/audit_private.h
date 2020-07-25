@@ -82,9 +82,9 @@ extern int			audit_arge;
 #define	BSM_FAILURE	1
 #define	BSM_NOAUDIT	2
 
-/* Audit record type to differentiate b/w sycall and NFS record*/
-#define AUDIT_SYSCALL_RECORD	0
-#define AUDIT_NFSRPC_RECORD	1
+/* Audit record type to differentiate between syscall and NFS record. */
+#define	AUDIT_SYSCALL_RECORD	0
+#define	AUDIT_NFSRPC_RECORD	1
 
 /*
  * Defines for the kernel audit record k_ar_commit field.  Flags are set to

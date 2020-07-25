@@ -50,26 +50,28 @@
 #endif
 
 /*
- * These defintion are required for NFS part and including their NFS header
- * file cause conflict with other structure defintions.
+ * These macro defintions are required for NFS part and including their
+ * NFS header files cause conflict with other structure declarations.
  */
 #ifndef NFSMUTEX_T
-#define	NFSMUTEX_T		struct mtx
-#endif
+#define	NFSMUTEX_T	struct mtx
+#endif /* NFSMUTEX_T */
 #ifndef NFSOCKADDR_T
 #define	NFSSOCKADDR_T	struct sockaddr *
-#endif
+#endif /* NFSOCKADDR_T */
 
 #include <bsm/audit.h>
 
+#include <rpc/rpc.h>
+
 #include <sys/file.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
 
-#include <rpc/rpc.h>
-#include <sys/mount.h>
 #include <fs/nfs/nfsdport.h>
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfs.h>
+
 /*
  * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
  * removed automatically as a result of configuring log files, and can be
@@ -172,17 +174,19 @@ void	 audit_proc_coredump(struct thread *td, char *path, int errcode);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
-void audit_nfsarg_dev(struct kaudit_record *ar, int dev);
-void audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode);
-void audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa);
-void audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype, int soprotocol);
-void audit_nfsarg_text(struct kaudit_record *ar, const char *text);
-void audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
-    struct vnode *rdir, struct vnode *cdir, char *upath);
-void audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
-    struct vnode *rdir, struct vnode *cdir, char *upath);
-void audit_nfsarg_value(struct kaudit_record *ar, long value);
-void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
+void	 audit_nfsarg_dev(struct kaudit_record *ar, int dev);
+void	 audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode);
+void	 audit_nfsarg_netsockaddr(struct kaudit_record *ar,
+	    struct sockaddr *sa);
+void	 audit_nfsarg_socket(struct kaudit_record *ar, int sodomain,
+	    int sotype, int soprotocol);
+void	 audit_nfsarg_text(struct kaudit_record *ar, const char *text);
+void	 audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+	    struct vnode *rdir, struct vnode *cdir, char *upath);
+void	 audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
+	    struct vnode *rdir, struct vnode *cdir, char *upath);
+void	 audit_nfsarg_value(struct kaudit_record *ar, long value);
+void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_syscalls_enabled flag before performing the actual call.
@@ -466,7 +470,8 @@ void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 
 #define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol) do {	\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsarg_socket((nd)->nd_ar, (sodomain), (sotype), (soprotocol));	\
+		audit_nfsarg_socket((nd)->nd_ar, (sodomain), (sotype),	\
+		    (soprotocol));					\
 } while (0)
 
 #define	AUDIT_NFSARG_TEXT(nd, text) do {				\
@@ -476,12 +481,14 @@ void audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 
 #define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath) do {		\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsarg_upath1_vp((nd)->nd_ar, (td), (rdir), (cdir), (upath));	\
+		audit_nfsarg_upath1_vp((nd)->nd_ar, (td), (rdir),	\
+		    (cdir), (upath));					\
 } while (0)
 
 #define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath) do {		\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsarg_upath2_vp((nd)->nd_ar, (td), (rdir), (cdir), (upath));	\
+		audit_nfsarg_upath2_vp((nd)->nd_ar, (td), (rdir),	\
+		    (cdir), (upath));					\
 } while (0)
 
 #define	AUDIT_NFSARG_VALUE(nd, value) do {				\

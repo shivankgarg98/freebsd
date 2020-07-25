@@ -124,7 +124,6 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
-
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, 1, &nva);
 		goto out;
@@ -608,7 +607,8 @@ nfsrvd_lookup(struct nfsrv_descript *nd, __unused int isdgram,
 		nfsvno_relpathbuf(&named);
 		goto out;
 	}
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp, p, &dirp);
 	} else {
@@ -734,7 +734,7 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsv4stateid_t stateid;
 	nfsquad_t clientid;
 	struct thread *p = curthread;
-	
+
 	if (vp)
 		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
@@ -1121,7 +1121,8 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error)
 		goto nfsmout;
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (!nd->nd_repstat) {
 		NFSVNO_ATTRINIT(&nva);
 		if (nd->nd_flag & ND_NFSV2) {
@@ -1332,7 +1333,8 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, cnflags | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (error)
 		goto nfsmout;
 	if (!nd->nd_repstat) {
@@ -1507,7 +1509,8 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (error) {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
@@ -1606,7 +1609,8 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		nfsvno_relpathbuf(&fromnd);
 		goto out;
 	}
-	AUDIT_NFSARG_UPATH1_VP(nd, p, fromnd.ni_rootdir, dp, fromnd.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, fromnd.ni_rootdir, dp,
+	    fromnd.ni_cnd.cn_pnbuf);
 	/*
 	 * Unlock dp in this code section, so it is unlocked before
 	 * tdp gets locked. This avoids a potential LOR if tdp is the
@@ -1671,7 +1675,8 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			goto out;
 		}
 	}
-	AUDIT_NFSARG_UPATH2_VP(nd, p, tond.ni_rootdir, tdp, tond.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH2_VP(nd, p, tond.ni_rootdir, tdp,
+	    tond.ni_cnd.cn_pnbuf);
 	if (nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret,
@@ -1795,7 +1800,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
 		if (error) {
 			vrele(vp);
 			if (dp)
@@ -1873,7 +1879,8 @@ nfsrvd_symlink(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (!error && !nd->nd_repstat) {
-		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
 		error = nfsvno_getsymlink(nd, &nva, p, &pathcp, &pathlen);
 	}
 	if (error) {
@@ -1994,7 +2001,8 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error)
 		goto nfsmout;
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp, named.ni_cnd.cn_pnbuf);
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (!nd->nd_repstat) {
 		NFSVNO_ATTRINIT(&nva);
 		if (nd->nd_flag & ND_NFSV3) {
