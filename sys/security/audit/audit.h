@@ -573,6 +573,8 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_ARG_VNODE1(vp)
 #define	AUDIT_ARG_VNODE2(vp)
 
+#define	AUDITING_TD(td)		0
+
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
 

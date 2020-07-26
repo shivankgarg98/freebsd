@@ -435,7 +435,7 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat) {
 		if (NFSVNO_NOTSETSIZE(&nva)) {
 			if (NFSVNO_EXRDONLY(exp) ||
-			    (vfs_flags(vnode_mount(vp)) & MNT_RDONLY))
+			    (vfs_flags(vp->v_mount) & MNT_RDONLY))
 				nd->nd_repstat = EROFS;
 		} else {
 			if (vnode_vtype(vp) != VREG)
@@ -708,9 +708,11 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 		goto out;
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 	*tl = txdr_unsigned(len);
-	nd->nd_mb->m_next = mp;
-	nd->nd_mb = mpend;
-	nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
+	if (mp != NULL) {
+		nd->nd_mb->m_next = mp;
+		nd->nd_mb = mpend;
+		nd->nd_bpos = mtod(mpend, caddr_t) + mpend->m_len;
+	}
 
 out:
 	NFSEXITCODE2(0, nd);

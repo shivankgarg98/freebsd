@@ -793,7 +793,7 @@ sonewconn(struct socket *head, int connstatus)
 	return (so);
 }
 
-#ifdef SCTP
+#if defined(SCTP) || defined(SCTP_SUPPORT)
 /*
  * Socket part of sctp_peeloff().  Detach a new socket from an
  * association.  The new socket is returned with a reference.
@@ -1965,7 +1965,8 @@ restart:
 		}
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-			if (m == NULL) {
+			if (m == NULL && so->so_rcv.sb_tlsdcc == 0 &&
+			    so->so_rcv.sb_tlscc == 0) {
 				SOCKBUF_UNLOCK(&so->so_rcv);
 				goto release;
 			} else
