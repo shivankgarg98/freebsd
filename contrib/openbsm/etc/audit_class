@@ -17,6 +17,7 @@
 0x00001000:lo:login_logout
 0x00002000:aa:authentication and authorization
 0x00004000:ap:application
+0x00008000:nfs:network file system server
 0x20000000:io:ioctl
 0x40000000:ex:exec
 0x80000000:ot:miscellaneous

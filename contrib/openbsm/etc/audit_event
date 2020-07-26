@@ -615,6 +615,30 @@
 43262:AUE_EXECVEAT:execveat(2):pc,ex
 43263:AUE_SHMRENAME:shm_rename(2):ip
 #
+# NFS RPC related events.
+#
+43266:AUE_NFSRPC_GETATTR:nfsrvd_getattr:nfs
+43267:AUE_NFSRPC_SETATTR:nfsrvd_setattr:nfs
+43268:AUE_NFSRPC_LOOKUP:nfsrvd_lookup:nfs
+43269:AUE_NFSRPC_ACCESS:nfsrvd_access:nfs
+43270:AUE_NFSRPC_READLINK:nfsrvd_readlink:nfs
+43271:AUE_NFSRPC_READ:nfsrvd_read:nfs
+43272:AUE_NFSRPC_WRITE:nfsrvd_write:nfs
+43273:AUE_NFSRPC_CREATE:nfsrvd_create:nfs
+43274:AUE_NFSRPC_MKDIR:nfsrvd_mkdir:nfs
+43275:AUE_NFSRPC_SYMLINK:nfsrvd_symlink:nfs
+43276:AUE_NFSRPC_MKNOD:nfsrvd_mknod:nfs
+43277:AUE_NFSRPC_REMOVE:nfsrvd_remove:nfs
+43278:AUE_NFSRPC_RMDIR:nfsrvd_rmdir:nfs
+43279:AUE_NFSRPC_RENAME:nfsrvd_rename:nfs
+43280:AUE_NFSRPC_LINK:nfsrvd_link:nfs
+43281:AUE_NFSRPC_READDIR:nfsrvd_readdir:nfs
+43282:AUE_NFSRPC_READDIRPLUS:nfsrvd_readdirplus:nfs
+43283:AUE_NFSRPC_FSSTAT:nfsrvd_statfs:nfs
+43284:AUE_NFSRPC_FSINFO:nfsrvd_fsinfo:nfs
+43285:AUE_NFSRPC_PATHCONF:nfsrvd_pathconf:nfs
+43286:AUE_NFSRPC_COMMIT:nfsrvd_commit:nfs
+#
 # Solaris userspace events.
 #
 6144:AUE_at_create:at-create atjob:ad

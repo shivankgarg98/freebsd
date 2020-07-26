@@ -661,6 +661,31 @@
 #define	AUE_CLOSERANGE		43265	/* FreeBSD-specific. */
 
 /*
+ * NFS RPC related events.
+ */
+#define	AUE_NFSRPC_GETATTR	43266
+#define	AUE_NFSRPC_SETATTR	43267
+#define	AUE_NFSRPC_LOOKUP	43268
+#define	AUE_NFSRPC_ACCESS	43269
+#define	AUE_NFSRPC_READLINK	43270
+#define	AUE_NFSRPC_READ		43271
+#define	AUE_NFSRPC_WRITE	43272
+#define	AUE_NFSRPC_CREATE	43273
+#define	AUE_NFSRPC_MKDIR	43274
+#define	AUE_NFSRPC_SYMLINK	43275
+#define	AUE_NFSRPC_MKNOD	43276
+#define	AUE_NFSRPC_REMOVE	43277
+#define	AUE_NFSRPC_RMDIR	43278
+#define	AUE_NFSRPC_RENAME	43279
+#define	AUE_NFSRPC_LINK		43280
+#define	AUE_NFSRPC_READDIR	43281
+#define	AUE_NFSRPC_READDIRPLUS	43282
+#define	AUE_NFSRPC_FSSTAT	43283
+#define	AUE_NFSRPC_FSINFO	43284
+#define	AUE_NFSRPC_PATHCONF	43285
+#define	AUE_NFSRPC_COMMIT	43286
+
+/*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
  * normal Solaris BSM identifiers.  _O_ refers to it being an old, or compat
  * interface.  In most cases, Darwin has never implemented these system calls

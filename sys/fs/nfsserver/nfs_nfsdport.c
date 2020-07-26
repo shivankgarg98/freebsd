@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <fs/nfs/nfsport.h>
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 #include <sys/filio.h>
 #include <sys/hash.h>
@@ -1888,6 +1889,8 @@ nfsrvd_readdir(struct nfsrv_descript *nd, int isdgram,
 	int is_ufs;
 	struct thread *p = curthread;
 
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
@@ -2142,6 +2145,8 @@ nfsrvd_readdirplus(struct nfsrv_descript *nd, int isdgram,
 	uint64_t mounted_on_fileno;
 	struct thread *p = curthread;
 
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;

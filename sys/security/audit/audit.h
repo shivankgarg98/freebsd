@@ -49,10 +49,28 @@
 #error "no user-serviceable parts inside"
 #endif
 
+/*
+ * These macro defintions are required for NFS part and including their
+ * NFS header files cause conflict with other structure declarations.
+ */
+#ifndef NFSMUTEX_T
+#define	NFSMUTEX_T	struct mtx
+#endif /* NFSMUTEX_T */
+#ifndef NFSOCKADDR_T
+#define	NFSSOCKADDR_T	struct sockaddr *
+#endif /* NFSOCKADDR_T */
+
 #include <bsm/audit.h>
 
+#include <rpc/rpc.h>
+
 #include <sys/file.h>
+#include <sys/mount.h>
 #include <sys/sysctl.h>
+
+#include <fs/nfs/nfsdport.h>
+#include <fs/nfs/nfsproto.h>
+#include <fs/nfs/nfs.h>
 
 /*
  * Audit subsystem condition flags.  The audit_trail_enabled flag is set and
@@ -67,6 +85,10 @@
  *
  * XXXRW: Move trail flags to audit_private.h, as they no longer need to be
  * visible outside the audit code...?
+ *
+ * XXX: For NFS audit, we check audit_sycalls_enabled flag to decide whether
+ * we should audit NFS RPCs or not. Audit NFS RPCs only if we are auditing the
+ * syscalls. We can probably rename the flag to audit_enabled?
  */
 extern u_int	audit_dtrace_enabled;
 extern int	audit_trail_enabled;
@@ -76,6 +98,8 @@ extern bool	audit_syscalls_enabled;
 void	 audit_syscall_enter(unsigned short code, struct thread *td);
 void	 audit_syscall_exit(int error, struct thread *td);
 
+void	 audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td);
+void	 audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td);
 /*
  * The remaining kernel functions are conditionally compiled in as they are
  * wrapped by a macro, and the macro should be the only place in the source
@@ -150,6 +174,19 @@ void	 audit_proc_coredump(struct thread *td, char *path, int errcode);
 void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
+void	 audit_nfsarg_dev(struct kaudit_record *ar, int dev);
+void	 audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode);
+void	 audit_nfsarg_netsockaddr(struct kaudit_record *ar,
+	    struct sockaddr *sa);
+void	 audit_nfsarg_socket(struct kaudit_record *ar, int sodomain,
+	    int sotype, int soprotocol);
+void	 audit_nfsarg_text(struct kaudit_record *ar, const char *text);
+void	 audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+	    struct vnode *rdir, struct vnode *cdir, char *upath);
+void	 audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
+	    struct vnode *rdir, struct vnode *cdir, char *upath);
+void	 audit_nfsarg_value(struct kaudit_record *ar, long value);
+void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_syscalls_enabled flag before performing the actual call.
@@ -411,6 +448,74 @@ void	 audit_thread_free(struct thread *td);
 } while (0)
 
 /*
+ * Macros for wrapping audit_nfsarg_* calls. It checks the global
+ * audit_syscalls_enabled flag before performing the actual call.
+ */
+#define	AUDITING_NFS(nd)	(__predict_false((nd)->nd_flag & ND_AUDITREC))
+
+#define	AUDIT_NFSARG_DEV(nd, dev) do {					\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_dev((nd)->nd_ar, (dev));			\
+} while (0)
+
+#define	AUDIT_NFSARG_MODE(nd, mode) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_mode((nd)->nd_ar, (mode));			\
+} while (0)
+
+#define	AUDIT_NFSARG_NETSOCKADDR(nd, sa) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_netsockaddr((nd)->nd_ar, (sa));		\
+} while (0)
+
+#define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol) do {	\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_socket((nd)->nd_ar, (sodomain), (sotype),	\
+		    (soprotocol));					\
+} while (0)
+
+#define	AUDIT_NFSARG_TEXT(nd, text) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_text((nd)->nd_ar, (text));			\
+} while (0)
+
+#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath) do {		\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_upath1_vp((nd)->nd_ar, (td), (rdir),	\
+		    (cdir), (upath));					\
+} while (0)
+
+#define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath) do {		\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_upath2_vp((nd)->nd_ar, (td), (rdir),	\
+		    (cdir), (upath));					\
+} while (0)
+
+#define	AUDIT_NFSARG_VALUE(nd, value) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_value((nd)->nd_ar, (value));		\
+} while (0)
+
+#define	AUDIT_NFSARG_VNODE1(nd, vp) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_vnode1((nd)->nd_ar, (vp));			\
+} while (0)
+
+#define	AUDIT_NFSRPC_ENTER(nd, td)	({				\
+	bool _audit_entered = false;					\
+	if (__predict_false(audit_syscalls_enabled)) {			\
+		audit_nfsrpc_enter(nd, td);				\
+		_audit_entered = true;					\
+	}								\
+	_audit_entered;							\
+})
+
+#define	AUDIT_NFSRPC_EXIT(nd, td) do {					\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsrpc_exit(nd, td);				\
+} while (0)
+
+/*
  * A Macro to wrap the audit_sysclose() function.
  */
 #define	AUDIT_SYSCLOSE(td, fd)	do {					\
@@ -472,6 +577,19 @@ void	 audit_thread_free(struct thread *td);
 
 #define	AUDIT_SYSCALL_ENTER(code, td)	0
 #define	AUDIT_SYSCALL_EXIT(error, td)
+
+#define	AUDIT_NFSARG_DEV(nd, dev)
+#define	AUDIT_NFSARG_MODE(nd, mode)
+#define	AUDIT_NFSARG_NETSOCKADDR(nd, sa)
+#define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol)
+#define	AUDIT_NFSARG_TEXT(nd, text)
+#define	AUDIT_NFSARG_UPATH1_VP(nd, td, rdir, cdir, upath)
+#define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath)
+#define	AUDIT_NFSARG_VALUE(nd, value)
+#define	AUDIT_NFSARG_VNODE1(nd, vp)
+
+#define	AUDIT_NFSRPC_ENTER(nd, td)	0
+#define	AUDIT_NFSRPC_EXIT(nd, td)
 
 #define	AUDIT_SYSCLOSE(p, fd)
 

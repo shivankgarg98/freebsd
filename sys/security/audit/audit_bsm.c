@@ -1783,6 +1783,93 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_THR_EXIT:
 		break;
 
+	/* TODO XXX: Should I also log NFS file handle? The sycalls events generally log
+	 * FD VNODE and UPATH tokens. Following that analogy the NFS RPC event can
+	 * can log filehandle. */
+	case AUE_NFSRPC_GETATTR:
+	case AUE_NFSRPC_SETATTR:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_NFSRPC_LOOKUP:
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_ACCESS:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		/* XXX: argument # in this case? */
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_NFSRPC_READLINK:
+	case AUE_NFSRPC_READ:
+	case AUE_NFSRPC_WRITE:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_NFSRPC_CREATE:
+	case AUE_NFSRPC_MKDIR:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_SYMLINK:
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_MKNOD:
+		if (ARG_IS_VALID(kar, ARG_MODE)) {
+			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_DEV)) {
+			tok = au_to_arg32(3, "dev", ar->ar_arg_dev);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_REMOVE:
+	case AUE_NFSRPC_RMDIR:
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_RENAME:
+		UPATH1_VNODE1_TOKENS;
+		UPATH2_TOKENS;
+		break;
+
+	case AUE_NFSRPC_LINK:
+		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_NFSRPC_READDIR:
+	case AUE_NFSRPC_READDIRPLUS:
+	case AUE_NFSRPC_FSSTAT:
+	case AUE_NFSRPC_FSINFO:
+	case AUE_NFSRPC_PATHCONF:
+	case AUE_NFSRPC_COMMIT:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",
@@ -1796,6 +1883,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		kau_write(rec, subj_tok);
 		kau_free(rec);
 		return (BSM_NOAUDIT);
+	}
+	/*
+	 * Write common tokens for NFS RPCs.
+	 */
+	if (kar->kaudit_record_type == AUDIT_NFSRPC_RECORD) {
+		if (ARG_IS_VALID(kar, ARG_SADDRINET)) {
+			tok = au_to_sock_inet((struct sockaddr_in *)
+			    &ar->ar_arg_sockaddr);
+			kau_write(rec, tok);
+		}
 	}
 
 	if (jail_tok != NULL)

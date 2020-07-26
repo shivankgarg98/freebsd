@@ -189,6 +189,13 @@ au_evclassmap_init(void)
 		if (sysent[i].sy_auevent != AUE_NULL)
 			au_evclassmap_insert(sysent[i].sy_auevent, 0);
 	}
+
+	/*
+	 * Set up the initial event to class mapping for NFS RPC calls.
+	 */
+	for (i = 0; i < NFS_V3NPROCS; i++) {
+		au_evclassmap_insert(nfsrv_auevent[i], 0);
+	}
 }
 
 /*

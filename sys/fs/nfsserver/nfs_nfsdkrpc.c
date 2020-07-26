@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/nfsserver/nfs_fha_new.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
 
 NFSDLOCKMUTEX;
@@ -382,7 +383,13 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (cacherep == RC_DOIT) {
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			nd->nd_xprt = xprt;
+		AUDIT_NFSRPC_ENTER(nd, curthread);
+		if (nd->nd_nam2 != NULL)
+			AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam2);
+		else
+			AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
+		AUDIT_NFSRPC_EXIT(nd, curthread);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {

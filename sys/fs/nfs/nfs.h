@@ -36,6 +36,9 @@
 
 #ifndef _NFS_NFS_H_
 #define	_NFS_NFS_H_
+
+#include <bsm/audit_kevents.h>
+
 /*
  * Tunable constants for nfs
  */
@@ -309,7 +312,7 @@ struct nfsd_dumplocks {
 struct nfsreferral {
 	u_char		*nfr_srvlist;	/* List of servers */
 	int		nfr_srvcnt;	/* number of servers */
-	vnode_t		nfr_vp;	/* vnode for referral */
+	struct vnode *	nfr_vp;		/* vnode for referral */
 	uint64_t	nfr_dfileno;	/* assigned dir inode# */
 };
 
@@ -559,6 +562,11 @@ struct nfscred {
 #define	NFSV4ROOT_GEN		1
 
 /*
+ * This array indicates the audit event number corresponding to NFS RPCs.
+ */
+extern u_int16_t nfsrv_auevent[NFS_V3NPROCS];
+
+/*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
  * What should be in this set is open to debate, but I believe that since
  * I/O system calls on ufs are never interrupted by signals the set should
@@ -670,6 +678,7 @@ struct nfsrv_descript {
 	nfsv4stateid_t		nd_savedcurstateid; /* Saved Current StateID */
 	uint32_t		nd_maxreq;	/* Max. request (session). */
 	uint32_t		nd_maxresp;	/* Max. reply (session). */
+	struct kaudit_record	*nd_ar;		/* Audit record for NFS server */
 	int			nd_bextpg;	/* Current ext_pgs page */
 	int			nd_bextpgsiz;	/* Bytes left in page */
 	int			nd_maxextsiz;	/* Max ext_pgs mbuf size */
@@ -721,6 +730,7 @@ struct nfsrv_descript {
 #define	ND_EXTLS		0x8000000000
 #define	ND_EXTLSCERT		0x10000000000
 #define	ND_EXTLSCERTUSER	0x20000000000
+#define	ND_AUDITREC		0x40000000000
 
 /*
  * ND_GSS should be the "or" of all GSS type authentications.
