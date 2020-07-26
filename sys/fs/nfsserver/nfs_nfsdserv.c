@@ -1201,6 +1201,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 			vrele(dirp);
 		goto out;
 	}
+
 	if (!(nd->nd_flag & ND_NFSV2)) {
 		switch (how) {
 		case NFSCREATE_GUARDED:
@@ -1592,6 +1593,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 	u_long *hashp;
 	fhandle_t fh;
 	struct thread *p = curthread;
+
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret, &fdiraft);
 		nfsrv_wcc(nd, tdirfor_ret, &tdirfor, tdiraft_ret, &tdiraft);
@@ -1993,6 +1995,7 @@ nfsrvd_mkdir(struct nfsrv_descript *nd, __unused int isdgram,
 	char *bufp;
 	u_long *hashp;
 	struct thread *p = curthread;
+
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;

@@ -636,6 +636,7 @@ audit_commit(struct kaudit_record *ar, int error, int retval)
 		audit_free(ar);
 		return;
 	}
+
 	/*
 	 * Note: it could be that some records initiated while audit was
 	 * enabled should still be committed?
