@@ -839,19 +839,20 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	if (event == AUE_NULL)
 		return;
 
-	/* XXX:  I'm unable to understand how auid is assigned and its role exactly.
-	 * Somehow, it is assigned as AU_DEFAUDITID. Therefore, aumask is assigned
-	 * as that non-attr event.
-	 * Ideally, it should come under attr events. Right?
-	 */
 	memcpy(&(nd->nd_cred->cr_audit), &(td->td_ucred->cr_audit),
 	    sizeof(struct auditinfo_addr));
-	auid = td->td_ucred->cr_audit.ai_auid;
-	if (auid == AU_DEFAUDITID) {
-		aumask = &audit_nae_mask;
-	} else {
-		aumask = &td->td_ucred->cr_audit.ai_mask;
-	}
+
+	/*
+	 * The auid for NFS Audit events is AU_DEFAUDITID. The kernel
+	 * non-attributable event mask is used as audit mask as all NFS Audit
+	 * events are triggered from within the kernel.
+	 */
+	auid = nd->nd_cred->cr_audit.ai_auid;
+
+	KASSERT(auid == AU_DEFAUDITID,
+	    ("audit_nfsrpc_enter: NFS auid != AU_DEFAUDITID"));
+
+	aumask = &audit_nae_mask;
 	class = au_event_class(event);
 	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
 		/*
