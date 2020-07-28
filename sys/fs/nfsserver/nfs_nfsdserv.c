@@ -1102,7 +1102,7 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsv2_sattr *sp;
 	struct nameidata named;
 	u_int32_t *tl;
-	int error = 0, tsize, dirfor_ret = 1, diraft_ret = 1;
+	int error = 0, lktype = 0, tsize, dirfor_ret = 1, diraft_ret = 1;
 	int how = NFSCREATE_UNCHECKED, exclusive_flag = 0;
 	NFSDEV_T rdev = 0;
 	vnode_t vp = NULL, dirp = NULL;
@@ -1123,8 +1123,15 @@ nfsrvd_create(struct nfsrv_descript *nd, __unused int isdgram,
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
 	if (error)
 		goto nfsmout;
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
-	    named.ni_cnd.cn_pnbuf);
+	if (__predict_false(nd->nd_flag & ND_AUDITREC)) {
+		if ((lktype = NFSVOPISLOCKED(dp)) != 0)
+			NFSVOPUNLOCK(dp);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
+		if (lktype)
+			if ((error = NFSVOPLOCK(dp, lktype)) != 0)
+				goto nfsmout;
+	}
 	if (!nd->nd_repstat) {
 		NFSVNO_ATTRINIT(&nva);
 		if (nd->nd_flag & ND_NFSV2) {
@@ -1497,7 +1504,7 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 {
 	struct nameidata named;
 	u_int32_t *tl;
-	int error = 0, dirfor_ret = 1, diraft_ret = 1;
+	int error = 0, lktype = 0, dirfor_ret = 1, diraft_ret = 1;
 	vnode_t dirp = NULL;
 	struct nfsvattr dirfor, diraft;
 	char *bufp;
@@ -1512,12 +1519,22 @@ nfsrvd_remove(struct nfsrv_descript *nd, __unused int isdgram,
 	    LOCKPARENT | LOCKLEAF);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
-	    named.ni_cnd.cn_pnbuf);
 	if (error) {
 		vput(dp);
 		nfsvno_relpathbuf(&named);
 		goto out;
+	}
+	if (__predict_false(nd->nd_flag & ND_AUDITREC)) {
+		if ((lktype = NFSVOPISLOCKED(dp)) != 0)
+			NFSVOPUNLOCK(dp);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
+		if (lktype)
+			if ((error = NFSVOPLOCK(dp, lktype)) != 0) {
+				vrele(dp);
+				nfsvno_relpathbuf(&named);
+				goto out;
+			}
 	}
 	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
@@ -1582,7 +1599,7 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
     vnode_t dp, vnode_t todp, struct nfsexstuff *exp, struct nfsexstuff *toexp)
 {
 	u_int32_t *tl;
-	int error = 0, fdirfor_ret = 1, fdiraft_ret = 1;
+	int error = 0, lktype = 0, fdirfor_ret = 1, fdiraft_ret = 1;
 	int tdirfor_ret = 1, tdiraft_ret = 1;
 	struct nameidata fromnd, tond;
 	vnode_t fdirp = NULL, tdirp = NULL, tdp = NULL;
@@ -1613,8 +1630,18 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 		nfsvno_relpathbuf(&fromnd);
 		goto out;
 	}
-	AUDIT_NFSARG_UPATH1_VP(nd, p, fromnd.ni_rootdir, dp,
-	    fromnd.ni_cnd.cn_pnbuf);
+	if (__predict_false(nd->nd_flag & ND_AUDITREC)) {
+		if ((lktype = NFSVOPISLOCKED(dp)) != 0)
+			NFSVOPUNLOCK(dp);
+		AUDIT_NFSARG_UPATH1_VP(nd, p, fromnd.ni_rootdir, dp,
+		    fromnd.ni_cnd.cn_pnbuf);
+		if (lktype)
+			if ((error = NFSVOPLOCK(dp, lktype)) != 0) {
+				vrele(dp);
+				nfsvno_relpathbuf(&fromnd);
+				goto out;
+			}
+	}
 	/*
 	 * Unlock dp in this code section, so it is unlocked before
 	 * tdp gets locked. This avoids a potential LOR if tdp is the

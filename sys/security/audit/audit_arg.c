@@ -1021,7 +1021,6 @@ audit_sysclose(struct thread *td, int fd)
 }
 
 /* NFS RPC related audit args */
-
 void
 audit_nfsarg_dev(struct kaudit_record *ar, int dev)
 {
@@ -1103,23 +1102,12 @@ void
 audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
 {
-	int islocked = 0;
 
 	if (ar == NULL)
 		return;
 
-	islocked = VOP_ISLOCKED(cdir);
-	/* TODO: Correct this.
-	 * XXX: Unlocking the vnode for making the UPATH is not the correct
-	 * way but passing locked vnode was making too much complication in
-	 * vfs_cache.c. Did this for now to stop the kernel from crashing and
-	 * panicking.
-	 */
-	if (islocked)
-		VOP_UNLOCK(cdir);
+	KASSERT(VOP_ISLOCKED(cdir) == 0, ("audit_nfsarg_upath1_vp: vp locked"));
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
-	if (islocked)
-		vn_lock(cdir, islocked | LK_RETRY);
 
 	ARG_SET_VALID(ar, ARG_UPATH1);
 }
@@ -1128,17 +1116,12 @@ void
 audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
     struct vnode *rdir, struct vnode *cdir, char *upath)
 {
-	int islocked = 0;
 
 	if (ar == NULL)
 		return;
 
-	islocked = VOP_ISLOCKED(cdir);
-	if (islocked)
-		VOP_UNLOCK(cdir);
+	KASSERT(VOP_ISLOCKED(cdir) == 0, ("audit_nfsarg_upath1_vp: vp locked"));
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
-	if (islocked)
-		vn_lock(cdir, islocked | LK_RETRY);
 
 	ARG_SET_VALID(ar, ARG_UPATH2);
 }
@@ -1173,7 +1156,10 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 	/* Hold the vnode lock for VOP_GETTR call. */
 	if (!islocked) {
 		vref(vp);
-		vn_lock(vp, LK_SHARED | LK_RETRY);
+		if (vn_lock(vp, LK_SHARED)) {
+			vrele(vp);
+			return;
+		}
 	}
 	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
 	if (!islocked) {
