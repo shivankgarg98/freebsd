@@ -1061,7 +1061,9 @@ audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
 	case AF_INET6:
 		ARG_SET_VALID(ar, ARG_SADDRINET6);
 		break;
-	/* XXXAUDIT: default? */
+
+	default:
+		panic("audit_nfsarg_netsockaddr: invalid sa_family");
 	}
 }
 

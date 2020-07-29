@@ -275,6 +275,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	bzero(ar, sizeof(*ar));
 	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
 	nanotime(&ar->k_ar.ar_starttime);
+	ar->kaudit_record_type = AUDIT_SYSCALL_RECORD;
 
 	/*
 	 * Export the subject credential.
@@ -345,6 +346,7 @@ audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
 	bzero(ar, sizeof(*ar));
 	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
 	nanotime(&ar->k_ar.ar_starttime);
+	ar->kaudit_record_type = AUDIT_NFSRPC_RECORD;
 
 	/*
 	 * Export the subject credential.
@@ -471,7 +473,6 @@ audit_new(int event, struct thread *td)
 	 */
 	ar = uma_zalloc_arg(audit_record_zone, td, M_WAITOK);
 	ar->k_ar.ar_event = event;
-	ar->kaudit_record_type = AUDIT_SYSCALL_RECORD;
 
 	mtx_lock(&audit_mtx);
 	audit_pre_q_len++;
@@ -485,25 +486,15 @@ audit_nfs_new(int event, struct nfsrv_descript *nd)
 {
 	struct kaudit_record *ar;
 
-	/* This below comment statement becomes untrue in case NFS audit
+	/* This below comment statement (copied from audit_new) becomes untrue in case NFS audit
 	 * records are created. Would this create any problem??
 	 * Note: the number of outstanding uncommitted audit records is
 	 * limited to the number of concurrent threads servicing system calls
 	 * in the kernel.
 	 */
 
-	/*
-	 * XXX: I created a uma_zone for nfs records. The previous arrangement
-	 * which was passes thread was also fine, but this give the nd control
-	 * over its subject credentials (So subject token will contain creds
-	 * from nd->nd_cred) may revert to td_cr if those credentials would look
-	 * more appropraiate in NFS RPC audit subject token.
-	 * It all depends. TO CONFIRM.
-	 */
-
 	ar = uma_zalloc_arg(audit_nfsrecord_zone, nd, M_WAITOK);
 	ar->k_ar.ar_event = event;
-	ar->kaudit_record_type = AUDIT_NFSRPC_RECORD;
 
 	mtx_lock(&audit_mtx);
 	audit_pre_q_len++;
@@ -834,7 +825,11 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
 	    ("audit_nfsrpc_enter: ND_AUDITREC set"));
 
-	event = nfsrv_auevent[nd->nd_procnum];
+	/* Currently, NFSv4 is not supported. */
+	if (!(nd->nd_flag & ND_NFSV4))
+		event = nfsrv_auevent[nd->nd_procnum];
+	else
+		event = AUE_NULL;
 	/* NFS Procedure NULL do nothing. So, no need to audit this event. */
 	if (event == AUE_NULL)
 		return;

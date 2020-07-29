@@ -562,7 +562,8 @@ struct nfscred {
 #define	NFSV4ROOT_GEN		1
 
 /*
- * This array indicates the audit event number corresponding to NFS RPCs.
+ * This array indicates the audit event number corresponding to NFSv3 and
+ * NFSv2 RPCs. This table doesn't support NFSv4.
  */
 extern u_int16_t nfsrv_auevent[NFS_V3NPROCS];
 
