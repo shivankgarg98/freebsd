@@ -1054,16 +1054,18 @@ audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
 
 	bcopy(sa, &ar->k_ar.ar_arg_sockaddr, sa->sa_len);
 	switch (sa->sa_family) {
+//#ifdef INET
 	case AF_INET:
 		ARG_SET_VALID(ar, ARG_SADDRINET);
 		break;
-
+//#endif
+//#ifdef INET6
 	case AF_INET6:
 		ARG_SET_VALID(ar, ARG_SADDRINET6);
 		break;
-
+//#endif
 	default:
-		panic("audit_nfsarg_netsockaddr: invalid sa_family");
+		printf/*panic*/("audit_nfsarg_netsockaddr: invalid sa_family");
 	}
 }
 
@@ -1142,8 +1144,7 @@ audit_nfsarg_value(struct kaudit_record *ar, long value)
 void
 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 {
-	int error;
-	bool islocked = false;
+	int error, lktype = 0;
 
 	/* Page fault panic occur if vnode *vp is NULL. */
 	KASSERT(vp != NULL, ("audit_nfsarg_vnode1: vp == NULL"));
@@ -1151,20 +1152,19 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 	if (ar == NULL)
 		return;
 
-	if (VOP_ISLOCKED(vp))
-		islocked = true;
+	lktype = VOP_ISLOCKED(vp);
 	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
 	ARG_CLEAR_VALID(ar, ARG_VNODE1);
 	/* Hold the vnode lock for VOP_GETTR call. */
-	if (!islocked) {
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
 		vref(vp);
-		if (vn_lock(vp, LK_SHARED)) {
+		if (vn_lock(vp, LK_SHARED | LK_NOWAIT)) {
 			vrele(vp);
 			return;
 		}
 	}
 	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
-	if (!islocked) {
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
 		vput(vp);
 	}
 	if (error == 0)

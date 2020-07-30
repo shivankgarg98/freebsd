@@ -122,12 +122,11 @@ nfsrvd_access(struct nfsrv_descript *nd, __unused int isdgram,
 	accmode_t deletebit;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, 1, &nva);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	nfsmode = fxdr_unsigned(u_int32_t, *tl);
 	AUDIT_NFSARG_MODE(nd, nfsmode);
@@ -237,15 +236,9 @@ nfsrvd_getattr(struct nfsrv_descript *nd, int isdgram,
 	accmode_t accmode;
 	struct thread *p = curthread;
 
-	/*
-	 * XXX: in some cases the vnode passed can be NULL. For instance,
-	 * if getattr is called for a file, after it is removed. Calling
-	 * AUDIT_NFSARG on it may cause problem later.
-	 */ 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat)
 		goto out;
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_flag & ND_NFSV4) {
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, NULL);
 		if (error) {
@@ -369,12 +362,11 @@ nfsrvd_setattr(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSACL_T *aclp = NULL;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, preat_ret, &nva2, postat_ret, &nva);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 #ifdef NFS4_ACL_EXTATTR_NAME
 	aclp = acl_alloc(M_WAITOK);
 	aclp->acl_cnt = 0;
@@ -684,12 +676,11 @@ nfsrvd_readlink(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr nva;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (vnode_vtype(vp) != VLNK) {
 		if (nd->nd_flag & ND_NFSV2)
 			nd->nd_repstat = ENXIO;
@@ -737,12 +728,11 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &nva);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_flag & ND_NFSV2) {
 		NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		off = (off_t)fxdr_unsigned(u_int32_t, *tl++);
@@ -926,12 +916,11 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsattrbit_t attrbits;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, forat_ret, &forat, aftat_ret, &nva);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	gotproxystateid = 0;
 	if (nd->nd_flag & ND_NFSV2) {
 		NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
@@ -1794,13 +1783,12 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	u_long *hashp;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		nfsrv_wcc(nd, dirfor_ret, &dirfor, diraft_ret, &diraft);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSVOPUNLOCK(vp);
 	if (vnode_vtype(vp) == VDIR) {
 		if (nd->nd_flag & ND_NFSV4)
@@ -2158,13 +2146,11 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t off;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
 		goto out;
 	}
-
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	/* Return NFSERR_ISDIR in NFSv4 when commit on a directory. */
 	if (vp->v_type != VREG) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -2219,13 +2205,12 @@ nfsrvd_statfs(struct nfsrv_descript *nd, __unused int isdgram,
 	u_quad_t tval;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	sf = NULL;
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_statfs(vp, sf);
 	getret = nfsvno_getattr(vp, &at, nd, p, 1, NULL);
@@ -2280,12 +2265,11 @@ nfsrvd_fsinfo(struct nfsrv_descript *nd, int isdgram,
 	struct nfsvattr at;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	getret = nfsvno_getattr(vp, &at, nd, p, 1, NULL);
 	nfsvno_getfs(&fs, isdgram);
 	vput(vp);
@@ -2322,12 +2306,11 @@ nfsrvd_pathconf(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr at;
 	struct thread *p = curthread;
 
-	if (vp)
-		AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nd->nd_repstat) {
 		nfsrv_postopattr(nd, getret, &at);
 		goto out;
 	}
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	nd->nd_repstat = nfsvno_pathconf(vp, _PC_LINK_MAX, &linkmax,
 	    nd->nd_cred, p);
 	if (!nd->nd_repstat)
