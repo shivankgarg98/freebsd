@@ -1110,7 +1110,6 @@ audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
 	if (ar == NULL)
 		return;
 
-	KASSERT(VOP_ISLOCKED(cdir) == 0, ("audit_nfsarg_upath1_vp: vp locked"));
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
 
 	ARG_SET_VALID(ar, ARG_UPATH1);
@@ -1124,7 +1123,6 @@ audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
 	if (ar == NULL)
 		return;
 
-	KASSERT(VOP_ISLOCKED(cdir) == 0, ("audit_nfsarg_upath1_vp: vp locked"));
 	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
 
 	ARG_SET_VALID(ar, ARG_UPATH2);

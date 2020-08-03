@@ -457,6 +457,11 @@ static int vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rd
     char *buf, char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
+static int vn_locked_fullpath_any(struct thread *td, struct vnode *vp,
+    struct vnode *rdir, char *buf, char **retbuf, size_t *buflen);
+static int vn_locked_fullpath_dir(struct thread *td, struct vnode *vp,
+    struct vnode *rdir, char *buf, char **retbuf, size_t *len,
+    bool slash_prefixed, size_t addend);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2386,13 +2391,23 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 {
 	char *buf;
 	size_t buflen;
-	int error;
+	int error, lktype;
 
 	if (__predict_false(vn == NULL))
 		return (EINVAL);
+	lktype = VOP_ISLOCKED(vn);
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-	error = vn_fullpath_any(td, vn, rootvnode, buf, retbuf, &buflen);
+	/*
+	 * Should I check != LK_EXCLUSIVE && != LK_SHARED, because of
+	 * LK_EXCLOTHER. Same doubt for everywhere I added VOP_ISLOCKED.
+	 */
+	if (lktype)
+		error = vn_locked_fullpath_any(td, vn, rootvnode, buf, retbuf,
+		    &buflen);
+	else
+		error = vn_fullpath_any(td, vn, rootvnode, buf, retbuf,
+		    &buflen);
 	if (!error)
 		*freebuf = buf;
 	else
@@ -2441,6 +2456,72 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 	vn_lock(*vp, LK_SHARED | LK_RETRY);
 	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
 	vput(*vp);
+	if (error) {
+		counter_u64_add(numfullpathfail2, 1);
+		SDT_PROBE3(vfs, namecache, fullpath, return,  error, vp, NULL);
+		return (error);
+	}
+
+	*vp = dvp;
+	if (VN_IS_DOOMED(dvp)) {
+		/* forced unmount */
+		vrele(dvp);
+		error = ENOENT;
+		SDT_PROBE3(vfs, namecache, fullpath, return, error, vp, NULL);
+		return (error);
+	}
+	/*
+	 * *vp has its use count incremented still.
+	 */
+
+	return (0);
+}
+
+/*
+ * The function works same as vn_vptocnp but for locked *vp.
+ */
+int
+vn_locked_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
+{
+	struct vnode *dvp;
+	struct namecache *ncp;
+	struct mtx *vlp;
+	int error;
+
+	vlp = VP2VNODELOCK(*vp);
+	mtx_lock(vlp);
+	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
+		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
+			break;
+	}
+	if (ncp != NULL) {
+		if (*buflen < ncp->nc_nlen) {
+			mtx_unlock(vlp);
+			vunref(*vp);
+			counter_u64_add(numfullpathfail4, 1);
+			error = ENOMEM;
+			SDT_PROBE3(vfs, namecache, fullpath, return, error,
+			    vp, NULL);
+			return (error);
+		}
+		*buflen -= ncp->nc_nlen;
+		memcpy(buf + *buflen, ncp->nc_name, ncp->nc_nlen);
+		SDT_PROBE3(vfs, namecache, fullpath, hit, ncp->nc_dvp,
+		    ncp->nc_name, vp);
+		dvp = *vp;
+		*vp = ncp->nc_dvp;
+		vref(*vp);
+		mtx_unlock(vlp);
+		vrele(dvp);
+		return (0);
+	}
+	SDT_PROBE1(vfs, namecache, fullpath, miss, vp);
+
+	mtx_unlock(vlp);
+	KASSERT(VOP_ISLOCKED(*vp) != 0,
+	    ("vn_locked_vptocnp: vnode not locked"));
+	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
+	vunref(*vp);
 	if (error) {
 		counter_u64_add(numfullpathfail2, 1);
 		SDT_PROBE3(vfs, namecache, fullpath, return,  error, vp, NULL);
@@ -2574,6 +2655,138 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 }
 
 /*
+ * This function works same as vn_fullpath_dir but for locked vnode *vp.
+ */
+static int
+vn_locked_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend)
+{
+#ifdef KDTRACE_HOOKS
+	struct vnode *startvp = vp;
+#endif
+	struct vnode *vp1;
+	size_t buflen;
+	int error;
+	bool islocked = true;
+
+	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
+	VNPASS(vp->v_usecount > 0, vp);
+	KASSERT(VOP_ISLOCKED(vp) != 0,
+	    ("vn_locked_fullpath_dir: vp not locked"));
+	buflen = *len;
+
+	if (!slash_prefixed) {
+		MPASS(*len >= 2);
+		buflen--;
+		buf[buflen] = '\0';
+	}
+
+	error = 0;
+
+	SDT_PROBE1(vfs, namecache, fullpath, entry, vp);
+	counter_u64_add(numfullpathcalls, 1);
+	while (vp != rdir && vp != rootvnode) {
+		/*
+		 * The vp vnode must be already fully constructed,
+		 * since it is either found in namecache or obtained
+		 * from VOP_VPTOCNP().  We may test for VV_ROOT safely
+		 * without obtaining the vnode lock.
+		 */
+		if ((vp->v_vflag & VV_ROOT) != 0) {
+			if (!islocked)
+				vn_lock(vp, LK_RETRY | LK_SHARED);
+
+			/*
+			 * With the vnode locked, check for races with
+			 * unmount, forced or not.  Note that we
+			 * already verified that vp is not equal to
+			 * the root vnode, which means that
+			 * mnt_vnodecovered can be NULL only for the
+			 * case of unmount.
+			 */
+			if (VN_IS_DOOMED(vp) ||
+			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
+			    vp1->v_mountedhere != vp->v_mount) {
+				if (!islocked)
+					vput(vp);
+				else
+					vunref(vp);
+				error = ENOENT;
+				SDT_PROBE3(vfs, namecache, fullpath, return,
+				    error, vp, NULL);
+				break;
+			}
+
+			vref(vp1);
+			if (!islocked)
+				vput(vp);
+			else
+				vunref(vp);
+			vp = vp1;
+			islocked = false;
+			continue;
+		}
+		islocked = (VOP_ISLOCKED(vp)) ? true : false;
+		if (vp->v_type != VDIR) {
+			if (!islocked)
+				vrele(vp);
+			else
+				vunref(vp);
+			counter_u64_add(numfullpathfail1, 1);
+			error = ENOTDIR;
+			SDT_PROBE3(vfs, namecache, fullpath, return,
+			    error, vp, NULL);
+			break;
+		}
+		if (!islocked)
+			error = vn_vptocnp(&vp, td->td_ucred, buf, &buflen);
+		else
+			error = vn_locked_vptocnp(&vp, td->td_ucred, buf,
+			    &buflen);
+		islocked = (VOP_ISLOCKED(vp)) ? true : false;
+		if (error)
+			break;
+		if (buflen == 0) {
+			if (!islocked)
+				vrele(vp);
+			else
+				vunref(vp);
+			error = ENOMEM;
+			SDT_PROBE3(vfs, namecache, fullpath, return, error,
+			    startvp, NULL);
+			break;
+		}
+		buf[--buflen] = '/';
+		slash_prefixed = true;
+	}
+	if (error)
+		return (error);
+	if (!slash_prefixed) {
+		if (buflen == 0) {
+			if (!islocked)
+				vrele(vp);
+			else
+				vunref(vp);
+			counter_u64_add(numfullpathfail4, 1);
+			SDT_PROBE3(vfs, namecache, fullpath, return, ENOMEM,
+			    startvp, NULL);
+			return (ENOMEM);
+		}
+		buf[--buflen] = '/';
+	}
+	counter_u64_add(numfullpathfound, 1);
+	if (!islocked)
+		vrele(vp);
+	else
+		vunref(vp);
+
+	*retbuf = buf + buflen;
+	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, *retbuf);
+	*len -= buflen;
+	*len += addend;
+	return (0);
+}
+/*
  * Resolve an arbitrary vnode to a pathname.
  *
  * Note 2 caveats:
@@ -2616,6 +2829,48 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	    orig_buflen - *buflen));
 }
 
+/*
+ * This function works same as vn_fullpath_any but for locked vnode.
+ */
+static int
+vn_locked_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
+    char *buf, char **retbuf, size_t *buflen)
+{
+	size_t orig_buflen;
+	bool slash_prefixed;
+	int error, lktype;
+
+	if (*buflen < 2)
+		return (EINVAL);
+
+	orig_buflen = *buflen;
+	vref(vp);
+	slash_prefixed = false;
+	if (vp->v_type != VDIR) {
+		*buflen -= 1;
+		buf[*buflen] = '\0';
+		error = vn_locked_vptocnp(&vp, td->td_ucred, buf, buflen);
+		if (error)
+			return (error);
+		lktype = VOP_ISLOCKED(vp);
+		if (*buflen == 0) {
+			if (lktype)
+				vunref(vp);
+			else
+				vrele(vp);
+			return (ENOMEM);
+		}
+		*buflen -= 1;
+		buf[*buflen] = '/';
+		slash_prefixed = true;
+		if (lktype == 0)
+			return (vn_fullpath_dir(td, vp, rdir, buf, retbuf,
+			    buflen, slash_prefixed, orig_buflen - *buflen));
+	}
+
+	return (vn_locked_fullpath_dir(td, vp, rdir, buf, retbuf, buflen,
+	    slash_prefixed, orig_buflen - *buflen));
+}
 /*
  * Resolve an arbitrary vnode to a pathname (taking care of hardlinks).
  *
