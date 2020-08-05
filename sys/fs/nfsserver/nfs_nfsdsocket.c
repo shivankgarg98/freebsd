@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by the nfs server.
  */
 
+#include <security/audit/audit.h>
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstatsv1 nfsstatsv1;
@@ -485,6 +486,89 @@ u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
 	AUE_NFSRPC_COMMIT,
 };
 
+u_int16_t nfsrv_v4_auevent[NFSV42_NOPS] = {
+	AUE_NULL,
+	AUE_NFSV4RPC_COMPOUND, /* Audit Event for NFSv4 Compound RPC. */
+	AUE_NULL,
+	/* Audit Events for NFSv4 Operation numbers. */
+	AUE_NFSV4OP_ACCESS,
+	AUE_NFSV4OP_CLOSE,
+	AUE_NFSV4OP_COMMIT,
+	AUE_NFSV4OP_CREATE,
+	AUE_NFSV4OP_DELEGPURGE,
+	AUE_NFSV4OP_DELEGRETURN,
+	AUE_NFSV4OP_GETATTR,
+	AUE_NFSV4OP_GETFH,
+	AUE_NFSV4OP_LINK,
+	AUE_NFSV4OP_LOCK,
+	AUE_NFSV4OP_LOCKT,
+	AUE_NFSV4OP_LOCKU,
+	AUE_NFSV4OP_LOOKUP,
+	AUE_NFSV4OP_LOOKUPP,
+	AUE_NFSV4OP_NVERIFY,
+	AUE_NFSV4OP_OPEN,
+	AUE_NFSV4OP_OPENATTR,
+	AUE_NFSV4OP_OPENCONFIRM,
+	AUE_NFSV4OP_OPENDOWNGRADE,
+	AUE_NFSV4OP_PUTFH,
+	AUE_NFSV4OP_PUTPUBFH,
+	AUE_NFSV4OP_PUTROOTFH,
+	AUE_NFSV4OP_READ,
+	AUE_NFSV4OP_READDIR,
+	AUE_NFSV4OP_READLINK,
+	AUE_NFSV4OP_REMOVE,
+	AUE_NFSV4OP_RENAME,
+	AUE_NFSV4OP_RENEW,
+	AUE_NFSV4OP_RESTOREFH,
+	AUE_NFSV4OP_SAVEFH,
+	AUE_NFSV4OP_SECINFO,
+	AUE_NFSV4OP_SETATTR,
+	AUE_NFSV4OP_SETCLIENTID,
+	AUE_NFSV4OP_SETCLIENTIDCFRM,
+	AUE_NFSV4OP_VERIFY,
+	AUE_NFSV4OP_WRITE,
+	AUE_NFSV4OP_RELEASELCKOWN,
+	/* Audit events for additional operations for NFSv4.1. */
+	AUE_NFSV4OP_BACKCHANNELCTL,
+	AUE_NFSV4OP_BINDCONNTOSESS,
+	AUE_NFSV4OP_EXCHANGEID,
+	AUE_NFSV4OP_CREATESESSION,
+	AUE_NFSV4OP_DESTROYSESSION,
+	AUE_NFSV4OP_FREESTATEID,
+	AUE_NFSV4OP_GETDIRDELEG,
+	AUE_NFSV4OP_GETDEVINFO,
+	AUE_NFSV4OP_GETDEVLIST,
+	AUE_NFSV4OP_LAYOUTCOMMIT,
+	AUE_NFSV4OP_LAYOUTGET,
+	AUE_NFSV4OP_LAYOUTRETURN,
+	AUE_NFSV4OP_SECINFONONAME,
+	AUE_NFSV4OP_SEQUENCE,
+	AUE_NFSV4OP_SETSSV,
+	AUE_NFSV4OP_TESTSTATEID,
+	AUE_NFSV4OP_WANTDELEG,
+	AUE_NFSV4OP_DESTROYCLIENTID,
+	AUE_NFSV4OP_RECLAIMCOMPL,
+	/* Audit events for additional operations for NFSv4.2. */
+	AUE_NFSV4OP_ALLOCATE,
+	AUE_NFSV4OP_COPY,
+	AUE_NFSV4OP_COPYNOTIFY,
+	AUE_NFSV4OP_DEALLOCATE,
+	AUE_NFSV4OP_IOADVISE,
+	AUE_NFSV4OP_LAYOUTERROR,
+	AUE_NFSV4OP_LAYOUTSTATS,
+	AUE_NFSV4OP_OFFLOADCANCEL,
+	AUE_NFSV4OP_OFFLOADSTATUS,
+	AUE_NFSV4OP_READPLUS,
+	AUE_NFSV4OP_SEEK,
+	AUE_NFSV4OP_WRITESAME,
+	AUE_NFSV4OP_CLONE,
+	/* Audit events for optional Extended attribute ops (RFC-8276). */
+	AUE_NFSV4OP_GETXATTR,
+	AUE_NFSV4OP_SETXATTR,
+	AUE_NFSV4OP_LISTXATTRS,
+	AUE_NFSV4OP_REMOVEXATTR,
+};
+
 static struct mtx nfsrvd_statmtx;
 MTX_SYSINIT(nfsst, &nfsrvd_statmtx, "NFSstat", MTX_DEF);
 
@@ -638,7 +722,9 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 	 * The group is indicated by the value in nfs_retfh[].
 	 */
 	if (nd->nd_flag & ND_NFSV4) {
+		
 		nfsrvd_compound(nd, isdgram, tag, taglen, minorvers);
+		AUDIT_NFSRPC_EXIT(nd, curthread);
 	} else {
 		struct bintime start_time;
 
@@ -717,6 +803,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	static u_int64_t compref = 0;
 	struct bintime start_time;
 	struct thread *p;
+	bool audit_notexited = false; /* It checks NFSv4 subops audit exited. */
 
 	p = curthread;
 
@@ -840,6 +927,17 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	else
 		numops = fxdr_unsigned(int, *tl);
 	/*
+	 * NFSv4 Compound RPC overview record. It should audit:
+	 * - NFS socket Address
+	 * - Number of suboperations
+	 * - NFSv4 minor version
+	 * - XXX: Any other information??
+	 */
+	AUDIT_NFSRPC_ENTER(nd, p);
+	AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
+
+	AUDIT_NFSRPC_EXIT(nd, p);
+	/*
 	 * Loop around doing the sub ops.
 	 * vp - is an unlocked vnode pointer for the CFH
 	 * savevp - is an unlocked vnode pointer for the SAVEDFH
@@ -911,6 +1009,9 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		}
 
 		nd->nd_procnum = op;
+		AUDIT_NFSRPC_ENTER(nd, p);
+		audit_notexited = true;
+		AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
 		/*
 		 * If over flood level, reply NFSERR_RESOURCE, if at the first
 		 * Op. (Since a client recovery from NFSERR_RESOURCE can get
@@ -1193,7 +1294,11 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		} else {
 			*repp = 0;	/* NFS4_OK */
 		}
+		AUDIT_NFSRPC_EXIT(nd, p);
+		audit_notexited = false;
 	}
+	if (audit_notexited)
+		AUDIT_NFSRPC_EXIT(nd, p);
 nfsmout:
 	if (statsinprog != 0) {
 		nfsrvd_statend(op, /*bytes*/ 0, /*now*/ NULL,

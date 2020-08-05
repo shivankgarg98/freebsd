@@ -37,6 +37,8 @@
 /*
  * XXX needs <nfs/rpcv2.h> and <nfs/nfs.h> because of typedefs
  */
+#ifndef _NFS_NFSVAR_H_
+#define _NFS_NFSVAR_H_
 
 struct uio;
 struct ucred;
@@ -779,3 +781,4 @@ void nfsrvd_init(int);
 int nfscbd_addsock(struct file *);
 int nfscbd_nfsd(NFSPROC_T *, struct nfsd_nfscbd_args *);
 
+#endif /* _NFS_NFSVAR_H_ */

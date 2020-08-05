@@ -829,7 +829,7 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	if (!(nd->nd_flag & ND_NFSV4))
 		event = nfsrv_auevent[nd->nd_procnum];
 	else
-		event = AUE_NULL;
+		event = nfsrv_v4_auevent[nd->nd_procnum];
 	/* NFS Procedure NULL do nothing. So, no need to audit this event. */
 	if (event == AUE_NULL)
 		return;
