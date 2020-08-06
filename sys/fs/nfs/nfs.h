@@ -562,17 +562,20 @@ struct nfscred {
 #define	NFSV4ROOT_GEN		1
 
 /*
- * nfsrv_auevent array indicates the audit event number corresponding to
- * NFSv3 and NFSv2 RPCs. nfsrv_v4_auevent array is used for NFSv4 subops and
- * audit event number mapping.
+ * nfsrv3_auevent array indicates the audit event number corresponding to
+ * NFSv3 and NFSv2 RPCs.
+ * nfsrv4_auevent array is used to map NFSv4 subops to corresponding audit
+ * event.
+ * NFS program do sanity checks on procedure numbers before passing to audit.
  * XXX: NFSV42_NOPS is defined in fs/nfs/nfsport.h. Including that header file
- * creates trouble. */
+ * creates trouble.
+ */
 #ifndef NFSV42_NOPS
-#define NFSV42_NOPS 76
+#define NFSV42_NOPS		76
 #endif /* !NFSV42_NOPS */
 
-extern u_int16_t nfsrv_auevent[NFS_V3NPROCS];
-extern u_int16_t nfsrv_v4_auevent[NFSV42_NOPS];
+extern u_int16_t nfsrv3_auevent[NFS_V3NPROCS];
+extern u_int16_t nfsrv4_auevent[NFSV42_NOPS];
 
 /*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.

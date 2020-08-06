@@ -461,7 +461,7 @@ static int nfsv3to4op[NFS_V3NPROCS] = {
 	NFSV4OP_COMMIT,
 };
 
-u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
+u_int16_t nfsrv3_auevent[NFS_V3NPROCS] = {
 	AUE_NULL,
 	AUE_NFSRPC_GETATTR,
 	AUE_NFSRPC_SETATTR,
@@ -486,7 +486,7 @@ u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
 	AUE_NFSRPC_COMMIT,
 };
 
-u_int16_t nfsrv_v4_auevent[NFSV42_NOPS] = {
+u_int16_t nfsrv4_auevent[NFSV42_NOPS] = {
 	AUE_NULL,
 	AUE_NFSV4RPC_COMPOUND, /* Audit Event for NFSv4 Compound RPC. */
 	AUE_NULL,
@@ -930,12 +930,11 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 	 * NFSv4 Compound RPC overview record. It should audit:
 	 * - NFS socket Address
 	 * - Number of suboperations
-	 * - NFSv4 minor version
 	 * - XXX: Any other information??
 	 */
 	AUDIT_NFSRPC_ENTER(nd, p);
 	AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
-
+	AUDIT_NFSARG_VALUE(nd, numops);
 	AUDIT_NFSRPC_EXIT(nd, p);
 	/*
 	 * Loop around doing the sub ops.
