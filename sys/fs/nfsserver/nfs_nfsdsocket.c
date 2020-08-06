@@ -722,9 +722,7 @@ nfsrvd_dorpc(struct nfsrv_descript *nd, int isdgram, u_char *tag, int taglen,
 	 * The group is indicated by the value in nfs_retfh[].
 	 */
 	if (nd->nd_flag & ND_NFSV4) {
-		
 		nfsrvd_compound(nd, isdgram, tag, taglen, minorvers);
-		AUDIT_NFSRPC_EXIT(nd, curthread);
 	} else {
 		struct bintime start_time;
 
