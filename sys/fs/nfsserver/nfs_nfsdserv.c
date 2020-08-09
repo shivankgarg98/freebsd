@@ -5906,6 +5906,7 @@ nfsrvd_notsupp(struct nfsrv_descript *nd, __unused int isdgram,
     __unused vnode_t vp, __unused struct nfsexstuff *exp)
 {
 
+	AUDIT_NFSARG_TEXT(nd, "NFSv4 service not supported");
 	nd->nd_repstat = NFSERR_NOTSUPP;
 	NFSEXITCODE2(0, nd);
 	return (0);

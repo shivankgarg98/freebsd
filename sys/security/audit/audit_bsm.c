@@ -1787,7 +1787,9 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	 * FD VNODE and UPATH tokens. Following that analogy the NFS RPC event can
 	 * can log filehandle. */
 	case AUE_NFSRPC_GETATTR:
+	case AUE_NFSV4OP_GETATTR:
 	case AUE_NFSRPC_SETATTR:
+	case AUE_NFSV4OP_SETATTR:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
@@ -1795,10 +1797,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSRPC_LOOKUP:
+	case AUE_NFSV4OP_LOOKUP:
+	case AUE_NFSV4OP_LOOKUPP:
 		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_NFSRPC_ACCESS:
+	case AUE_NFSV4OP_ACCESS:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
@@ -1811,8 +1816,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSRPC_READLINK:
+	case AUE_NFSV4OP_READLINK:
 	case AUE_NFSRPC_READ:
+	case AUE_NFSV4OP_READ:
 	case AUE_NFSRPC_WRITE:
+	case AUE_NFSV4OP_WRITE:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
@@ -1833,6 +1841,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSRPC_MKNOD:
+	case AUE_NFSV4OP_CREATE:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1845,25 +1854,30 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSRPC_REMOVE:
+	case AUE_NFSV4OP_REMOVE:
 	case AUE_NFSRPC_RMDIR:
 		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_NFSRPC_RENAME:
+	case AUE_NFSV4OP_RENAME:
 		UPATH1_VNODE1_TOKENS;
 		UPATH2_TOKENS;
 		break;
 
 	case AUE_NFSRPC_LINK:
+	case AUE_NFSV4OP_LINK:
 		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_NFSRPC_READDIR:
 	case AUE_NFSRPC_READDIRPLUS:
+	case AUE_NFSV4OP_READDIR:
 	case AUE_NFSRPC_FSSTAT:
 	case AUE_NFSRPC_FSINFO:
 	case AUE_NFSRPC_PATHCONF:
 	case AUE_NFSRPC_COMMIT:
+	case AUE_NFSV4OP_COMMIT:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
@@ -1871,31 +1885,23 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	/*
-	 * nfsrvd_compound RPC record, is also an overview record for all the
-	 * suboperations records following from breaking down the compound RPC
-	 * request.
+	 * nfsrvd_compound RPC record is also an overview record for the
+	 * subsequent NFSv4 suboperation records.
 	 */
 	case AUE_NFSV4RPC_COMPOUND:
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
-			tok = au_to_arg32(1, "Num of SubOps", ar->ar_arg_value);
+			tok = au_to_arg32(1, "Num of subops", ar->ar_arg_value);
 			kau_write(rec, tok);
 		}
 		break;
 
-	case AUE_NFSV4OP_ACCESS:
 	case AUE_NFSV4OP_CLOSE:
-	case AUE_NFSV4OP_COMMIT:
-	case AUE_NFSV4OP_CREATE:
 	case AUE_NFSV4OP_DELEGPURGE:
 	case AUE_NFSV4OP_DELEGRETURN:
-	case AUE_NFSV4OP_GETATTR:
 	case AUE_NFSV4OP_GETFH:
-	case AUE_NFSV4OP_LINK:
 	case AUE_NFSV4OP_LOCK:
 	case AUE_NFSV4OP_LOCKT:
 	case AUE_NFSV4OP_LOCKU:
-	case AUE_NFSV4OP_LOOKUP:
-	case AUE_NFSV4OP_LOOKUPP:
 	case AUE_NFSV4OP_NVERIFY:
 	case AUE_NFSV4OP_OPEN:
 	case AUE_NFSV4OP_OPENATTR:
@@ -1904,57 +1910,57 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSV4OP_PUTFH:
 	case AUE_NFSV4OP_PUTPUBFH:
 	case AUE_NFSV4OP_PUTROOTFH:
-	case AUE_NFSV4OP_READ:
-	case AUE_NFSV4OP_READDIR:
-	case AUE_NFSV4OP_READLINK:
-	case AUE_NFSV4OP_REMOVE:
-	case AUE_NFSV4OP_RENAME:
 	case AUE_NFSV4OP_RENEW:
 	case AUE_NFSV4OP_RESTOREFH:
 	case AUE_NFSV4OP_SAVEFH:
 	case AUE_NFSV4OP_SECINFO:
-	case AUE_NFSV4OP_SETATTR:
 	case AUE_NFSV4OP_SETCLIENTID:
 	case AUE_NFSV4OP_SETCLIENTIDCFRM:
 	case AUE_NFSV4OP_VERIFY:
-	case AUE_NFSV4OP_WRITE:
 	case AUE_NFSV4OP_RELEASELCKOWN:
-	case AUE_NFSV4OP_BACKCHANNELCTL:
 	case AUE_NFSV4OP_BINDCONNTOSESS:
 	case AUE_NFSV4OP_EXCHANGEID:
 	case AUE_NFSV4OP_CREATESESSION:
 	case AUE_NFSV4OP_DESTROYSESSION:
 	case AUE_NFSV4OP_FREESTATEID:
-	case AUE_NFSV4OP_GETDIRDELEG:
 	case AUE_NFSV4OP_GETDEVINFO:
-	case AUE_NFSV4OP_GETDEVLIST:
 	case AUE_NFSV4OP_LAYOUTCOMMIT:
 	case AUE_NFSV4OP_LAYOUTGET:
 	case AUE_NFSV4OP_LAYOUTRETURN:
-	case AUE_NFSV4OP_SECINFONONAME:
 	case AUE_NFSV4OP_SEQUENCE:
-	case AUE_NFSV4OP_SETSSV:
 	case AUE_NFSV4OP_TESTSTATEID:
-	case AUE_NFSV4OP_WANTDELEG:
 	case AUE_NFSV4OP_DESTROYCLIENTID:
 	case AUE_NFSV4OP_RECLAIMCOMPL:
 	case AUE_NFSV4OP_ALLOCATE:
 	case AUE_NFSV4OP_COPY:
-	case AUE_NFSV4OP_COPYNOTIFY:
-	case AUE_NFSV4OP_DEALLOCATE:
 	case AUE_NFSV4OP_IOADVISE:
 	case AUE_NFSV4OP_LAYOUTERROR:
 	case AUE_NFSV4OP_LAYOUTSTATS:
-	case AUE_NFSV4OP_OFFLOADCANCEL:
-	case AUE_NFSV4OP_OFFLOADSTATUS:
-	case AUE_NFSV4OP_READPLUS:
 	case AUE_NFSV4OP_SEEK:
-	case AUE_NFSV4OP_WRITESAME:
-	case AUE_NFSV4OP_CLONE:
 	case AUE_NFSV4OP_GETXATTR:
 	case AUE_NFSV4OP_SETXATTR:
 	case AUE_NFSV4OP_LISTXATTRS:
 	case AUE_NFSV4OP_REMOVEXATTR:
+		break;
+
+	/* Unsupported NFSv4 Services. */
+	case AUE_NFSV4OP_BACKCHANNELCTL:
+	case AUE_NFSV4OP_GETDIRDELEG:
+	case AUE_NFSV4OP_GETDEVLIST:
+	case AUE_NFSV4OP_SECINFONONAME:
+	case AUE_NFSV4OP_SETSSV:
+	case AUE_NFSV4OP_WANTDELEG:
+	case AUE_NFSV4OP_COPYNOTIFY:
+	case AUE_NFSV4OP_DEALLOCATE:
+	case AUE_NFSV4OP_OFFLOADCANCEL:
+	case AUE_NFSV4OP_OFFLOADSTATUS:
+	case AUE_NFSV4OP_READPLUS:
+	case AUE_NFSV4OP_WRITESAME:
+	case AUE_NFSV4OP_CLONE:
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_NULL:
