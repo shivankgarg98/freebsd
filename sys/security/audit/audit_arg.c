@@ -1033,6 +1033,17 @@ audit_nfsarg_dev(struct kaudit_record *ar, int dev)
 }
 
 void
+audit_nfsarg_fflags(struct kaudit_record *ar, int fflags)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_fflags = fflags;
+	ARG_SET_VALID(ar, ARG_FFLAGS);
+}
+
+void
 audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode)
 {
 

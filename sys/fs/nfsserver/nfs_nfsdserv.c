@@ -1426,7 +1426,6 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsvno_mknod(&named, &nva, nd->nd_cred, p);
 	if (!nd->nd_repstat) {
 		vp = named.ni_vp;
-		AUDIT_NFSARG_VNODE1(nd, vp);
 		nfsrv_fixattr(nd, vp, &nva, aclp, p, &attrbits, exp);
 		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 		if ((nd->nd_flag & ND_NFSV3) && !nd->nd_repstat)
@@ -1461,6 +1460,7 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 #endif
 
 out:
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSEXITCODE2(0, nd);
 	return (0);
 nfsmout:
@@ -2338,8 +2338,10 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *tl++);
+	AUDIT_NFSARG_FFLAGS(nd, i);
 	switch (i) {
 	case NFSV4LOCKT_READW:
 		flags |= NFSLCK_BLOCKING;
@@ -2565,6 +2567,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t len;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, 8 * NFSX_UNSIGNED);
 	i = fxdr_unsigned(int, *(tl + 7));
 	if (i <= 0 || i > NFSV4_OPAQUELIMIT) {
@@ -2578,6 +2581,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	stp->ls_flags = NFSLCK_TEST;
 	stp->ls_uid = nd->nd_cred->cr_uid;
 	i = fxdr_unsigned(int, *tl++);
+	AUDIT_NFSARG_FFLAGS(nd, i);
 	switch (i) {
 	case NFSV4LOCKT_READW:
 		stp->ls_flags |= NFSLCK_BLOCKING;
@@ -2679,6 +2683,7 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int64_t len;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, 6 * NFSX_UNSIGNED + NFSX_STATEID);
 	stp = malloc(sizeof (struct nfsstate),
 	    M_NFSDSTATE, M_WAITOK);
@@ -2688,6 +2693,7 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 	lop->lo_flags = NFSLCK_UNLOCK;
 	stp->ls_op = nd->nd_rp;
 	i = fxdr_unsigned(int, *tl++);
+	AUDIT_NFSARG_FFLAGS(nd, i);
 	switch (i) {
 	case NFSV4LOCKT_READW:
 		stp->ls_flags |= NFSLCK_BLOCKING;
@@ -2973,6 +2979,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	 */
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	claim = fxdr_unsigned(int, *tl);
+	AUDIT_NFSARG_FFLAGS(nd, claim);
 	if (claim == NFSV4OPEN_CLAIMDELEGATECUR) {
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID);
 		stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
@@ -3009,6 +3016,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 			NFSEXITCODE2(error, nd);
 			return (error);
 		}
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, exp,
 			    p, &dirp);
@@ -3081,6 +3090,9 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_repstat = NFSERR_BADXDR;
 		goto nfsmout;
 	}
+
+	if (vp)
+		AUDIT_NFSARG_VNODE1(nd, vp);
 
 	/*
 	 * Do basic access checking.
@@ -3272,6 +3284,7 @@ nfsrvd_close(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr na;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	stp->ls_seq = fxdr_unsigned(u_int32_t, *tl++);
 	stp->ls_ownerlen = 0;
@@ -3389,6 +3402,7 @@ nfsrvd_delegreturn(struct nfsrv_descript *nd, __unused int isdgram,
 	struct nfsvattr na;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID);
 	stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
 	NFSBCOPY((caddr_t)tl, (caddr_t)stateid.other, NFSX_STATEIDOTHER);
@@ -3426,6 +3440,7 @@ nfsrvd_getfh(struct nfsrv_descript *nd, __unused int isdgram,
 	fhandle_t fh;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	nd->nd_repstat = nfsvno_getfh(vp, &fh, p);
 	vput(vp);
 	if (!nd->nd_repstat)
@@ -3957,6 +3972,7 @@ nfsrvd_verify(struct nfsrv_descript *nd, int isdgram,
 	fhandle_t fh;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1, NULL);
 	if (!nd->nd_repstat)
@@ -3994,6 +4010,7 @@ nfsrvd_openattr(struct nfsrv_descript *nd, __unused int isdgram,
 	u_int32_t *tl;
 	int error = 0, createdir __unused;
 
+	AUDIT_NFSARG_TEXT(nd, "NFSv4 service not supported");
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 	createdir = fxdr_unsigned(int, *tl);
 	nd->nd_repstat = NFSERR_NOTSUPP;

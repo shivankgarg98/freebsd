@@ -1896,15 +1896,52 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_CLOSE:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_DELEGPURGE:
+		break;
+
 	case AUE_NFSV4OP_DELEGRETURN:
 	case AUE_NFSV4OP_GETFH:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_LOCK:
 	case AUE_NFSV4OP_LOCKT:
 	case AUE_NFSV4OP_LOCKU:
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(1, "flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_NVERIFY:
+	case AUE_NFSV4OP_VERIFY:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_OPEN:
-	case AUE_NFSV4OP_OPENATTR:
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(1, "claim", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		UPATH1_VNODE1_TOKENS;
+		break;
+
 	case AUE_NFSV4OP_OPENCONFIRM:
 	case AUE_NFSV4OP_OPENDOWNGRADE:
 	case AUE_NFSV4OP_PUTFH:
@@ -1916,7 +1953,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSV4OP_SECINFO:
 	case AUE_NFSV4OP_SETCLIENTID:
 	case AUE_NFSV4OP_SETCLIENTIDCFRM:
-	case AUE_NFSV4OP_VERIFY:
 	case AUE_NFSV4OP_RELEASELCKOWN:
 	case AUE_NFSV4OP_BINDCONNTOSESS:
 	case AUE_NFSV4OP_EXCHANGEID:
@@ -1944,6 +1980,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	/* Unsupported NFSv4 Services. */
+	case AUE_NFSV4OP_OPENATTR:
 	case AUE_NFSV4OP_BACKCHANNELCTL:
 	case AUE_NFSV4OP_GETDIRDELEG:
 	case AUE_NFSV4OP_GETDEVLIST:

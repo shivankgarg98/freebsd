@@ -175,6 +175,7 @@ void	 audit_thread_alloc(struct thread *td);
 void	 audit_thread_free(struct thread *td);
 
 void	 audit_nfsarg_dev(struct kaudit_record *ar, int dev);
+void	 audit_nfsarg_fflags(struct kaudit_record *ar, int fflags);
 void	 audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode);
 void	 audit_nfsarg_netsockaddr(struct kaudit_record *ar,
 	    struct sockaddr *sa);
@@ -458,6 +459,11 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 		audit_nfsarg_dev((nd)->nd_ar, (dev));			\
 } while (0)
 
+#define	AUDIT_NFSARG_FFLAGS(nd, fflags) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_fflags((nd)->nd_ar, (fflags));		\
+} while (0)
+
 #define	AUDIT_NFSARG_MODE(nd, mode) do {				\
 	if (AUDITING_NFS(nd))						\
 		audit_nfsarg_mode((nd)->nd_ar, (mode));			\
@@ -579,6 +585,7 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_SYSCALL_EXIT(error, td)
 
 #define	AUDIT_NFSARG_DEV(nd, dev)
+#define	AUDIT_NFSARG_FFLAGS(nd, fflags)
 #define	AUDIT_NFSARG_MODE(nd, mode)
 #define	AUDIT_NFSARG_NETSOCKADDR(nd, sa)
 #define	AUDIT_NFSARG_SOCKET(nd, sodomain, sotype, soprotocol)

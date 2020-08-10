@@ -783,6 +783,12 @@ out:
  * Some suboperations are performed directly here to simplify file handle<-->
  * vnode pointer handling.
  */
+
+/*
+ * XXX: In NFSv4 implementation (mostly in nfsrvd_compound).
+ * *nd->nd_errp is not set for error. *repp is set but is unused.
+ * For Audit purpose, setting the nd_errp does not harm?
+ */
 static void
 nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
     int taglen, u_int32_t minorvers)
@@ -924,6 +930,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		numops = 0;
 	else
 		numops = fxdr_unsigned(int, *tl);
+	*nd->nd_errp = nfsd_errmap(nd);
 	/*
 	 * NFSv4 Compound RPC overview record. It should audit:
 	 * - NFS socket Address
@@ -1291,11 +1298,14 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		} else {
 			*repp = 0;	/* NFS4_OK */
 		}
+		*nd->nd_errp = *repp;
 		AUDIT_NFSRPC_EXIT(nd, p);
 		audit_notexited = false;
 	}
-	if (audit_notexited)
+	if (audit_notexited) {
+		*nd->nd_errp = nfsd_errmap(nd);
 		AUDIT_NFSRPC_EXIT(nd, p);
+	}
 nfsmout:
 	if (statsinprog != 0) {
 		nfsrvd_statend(op, /*bytes*/ 0, /*now*/ NULL,
