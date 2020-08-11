@@ -1325,10 +1325,10 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSNAMEICNDSET(&named.ni_cnd, nd->nd_cred, CREATE, cnflags | NOCACHE);
 	nfsvno_setpathbuf(&named, &bufp, &hashp);
 	error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
-	    named.ni_cnd.cn_pnbuf);
 	if (error)
 		goto nfsmout;
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (!nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
@@ -1426,8 +1426,8 @@ nfsrvd_mknod(struct nfsrv_descript *nd, __unused int isdgram,
 	nd->nd_repstat = nfsvno_mknod(&named, &nva, nd->nd_cred, p);
 	if (!nd->nd_repstat) {
 		vp = named.ni_vp;
-		AUDIT_NFSARG_VNODE1(nd, vp);
 		nfsrv_fixattr(nd, vp, &nva, aclp, p, &attrbits, exp);
+		AUDIT_NFSARG_VNODE1(nd, vp);
 		nd->nd_repstat = nfsvno_getfh(vp, fhp, p);
 		if ((nd->nd_flag & ND_NFSV3) && !nd->nd_repstat)
 			nd->nd_repstat = nfsvno_getattr(vp, &nva, nd, p, 1,
@@ -1667,9 +1667,9 @@ nfsrvd_rename(struct nfsrv_descript *nd, int isdgram,
 			nfsvno_relpathbuf(&tond);
 			goto out;
 		}
+		AUDIT_NFSARG_UPATH2_VP(nd, p, tond.ni_rootdir, tdp,
+		    tond.ni_cnd.cn_pnbuf);
 	}
-	AUDIT_NFSARG_UPATH2_VP(nd, p, tond.ni_rootdir, tdp,
-	    tond.ni_cnd.cn_pnbuf);
 	if (nd->nd_repstat) {
 		if (nd->nd_flag & ND_NFSV3) {
 			nfsrv_wcc(nd, fdirfor_ret, &fdirfor, fdiraft_ret,
@@ -1792,8 +1792,6 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 	if (!nd->nd_repstat) {
 		nfsvno_setpathbuf(&named, &bufp, &hashp);
 		error = nfsrv_parsename(nd, bufp, hashp, &named.ni_pathlen);
-		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
-		    named.ni_cnd.cn_pnbuf);
 		if (error) {
 			vrele(vp);
 			if (dp)
@@ -1801,6 +1799,8 @@ nfsrvd_link(struct nfsrv_descript *nd, int isdgram,
 			nfsvno_relpathbuf(&named);
 			goto out;
 		}
+		AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+		    named.ni_cnd.cn_pnbuf);
 		if (!nd->nd_repstat) {
 			nd->nd_repstat = nfsvno_namei(nd, &named, dp, 0, &tnes,
 			    p, &dirp);
