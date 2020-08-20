@@ -879,7 +879,7 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
  * RPC call. This function is very similiar to audit_syscall_exit.
  */
 void
-audit_nfsrpc_exit(struct nfsrv_descript *nd, struct thread *td)
+audit_nfsrpc_exit(struct nfsrv_descript *nd, __unused struct thread *td)
 {
 	int retval;
 	int error;

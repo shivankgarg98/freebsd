@@ -504,7 +504,7 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_NFSRPC_ENTER(nd, td)	({				\
 	bool _audit_entered = false;					\
 	if (__predict_false(audit_syscalls_enabled)) {			\
-		audit_nfsrpc_enter(nd, td);				\
+		audit_nfsrpc_enter((nd), (td));				\
 		_audit_entered = true;					\
 	}								\
 	_audit_entered;							\
@@ -512,7 +512,7 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 
 #define	AUDIT_NFSRPC_EXIT(nd, td) do {					\
 	if (AUDITING_NFS(nd))						\
-		audit_nfsrpc_exit(nd, td);				\
+		audit_nfsrpc_exit((nd), (td));				\
 } while (0)
 
 /*

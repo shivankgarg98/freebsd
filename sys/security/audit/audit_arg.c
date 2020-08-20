@@ -1151,7 +1151,12 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 		return;
 
 	lktype = VOP_ISLOCKED(vp);
-	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
+	/*
+	 * As well as returning 0 for unlocked, VOP_ISLOCKED can return
+	 * LK_EXCLOTHER for another thread holding a lock on it.
+	 *
+	 * XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?
+	 */
 	ARG_CLEAR_VALID(ar, ARG_VNODE1);
 	/* Hold the vnode lock for VOP_GETTR call. */
 	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
