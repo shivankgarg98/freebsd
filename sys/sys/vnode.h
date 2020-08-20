@@ -653,8 +653,6 @@ u_quad_t init_va_filerev(void);
 int	speedup_syncer(void);
 int	vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
 	    size_t *buflen);
-int	vn_locked_vptocnp(struct vnode **vp, struct ucred *cred, char *buf,
-	    size_t *buflen);
 int	vn_getcwd(struct thread *td, char *buf, char **retbuf, size_t *buflen);
 int	vn_fullpath(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
