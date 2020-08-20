@@ -457,9 +457,9 @@ static int vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rd
     char *buf, char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
-static int vn_locked_fullpath_any(struct thread *td, struct vnode *vp,
+static int vn_fullpath_any_locked(struct thread *td, struct vnode *vp,
     struct vnode *rdir, char *buf, char **retbuf, size_t *buflen);
-static int vn_locked_fullpath_dir(struct thread *td, struct vnode *vp,
+static int vn_fullpath_dir_locked(struct thread *td, struct vnode *vp,
     struct vnode *rdir, char *buf, char **retbuf, size_t *len,
     bool slash_prefixed, size_t addend);
 
@@ -2403,7 +2403,7 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	 * LK_EXCLOTHER. Same doubt for everywhere I added VOP_ISLOCKED.
 	 */
 	if (lktype)
-		error = vn_locked_fullpath_any(td, vn, rootvnode, buf, retbuf,
+		error = vn_fullpath_any_locked(td, vn, rootvnode, buf, retbuf,
 		    &buflen);
 	else
 		error = vn_fullpath_any(td, vn, rootvnode, buf, retbuf,
@@ -2480,8 +2480,8 @@ vn_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 /*
  * The function works same as vn_vptocnp but for locked *vp.
  */
-int
-vn_locked_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
+static int
+vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf, size_t *buflen)
 {
 	struct vnode *dvp;
 	struct namecache *ncp;
@@ -2519,7 +2519,7 @@ vn_locked_vptocnp(struct vnode **vp, struct ucred *cred, char *buf, size_t *bufl
 
 	mtx_unlock(vlp);
 	KASSERT(VOP_ISLOCKED(*vp) != 0,
-	    ("vn_locked_vptocnp: vnode not locked"));
+	    ("vn_vptocnp_locked: vnode not locked"));
 	error = VOP_VPTOCNP(*vp, &dvp, cred, buf, buflen);
 	vunref(*vp);
 	if (error) {
@@ -2658,7 +2658,7 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
  * This function works same as vn_fullpath_dir but for locked vnode *vp.
  */
 static int
-vn_locked_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
+vn_fullpath_dir_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend)
 {
 #ifdef KDTRACE_HOOKS
@@ -2672,7 +2672,7 @@ vn_locked_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 	VNPASS(vp->v_usecount > 0, vp);
 	KASSERT(VOP_ISLOCKED(vp) != 0,
-	    ("vn_locked_fullpath_dir: vp not locked"));
+	    ("vn_fullpath_dir_locked: vp not locked"));
 	buflen = *len;
 
 	if (!slash_prefixed) {
@@ -2741,7 +2741,7 @@ vn_locked_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		if (!islocked)
 			error = vn_vptocnp(&vp, td->td_ucred, buf, &buflen);
 		else
-			error = vn_locked_vptocnp(&vp, td->td_ucred, buf,
+			error = vn_vptocnp_locked(&vp, td->td_ucred, buf,
 			    &buflen);
 		islocked = (VOP_ISLOCKED(vp)) ? true : false;
 		if (error)
@@ -2786,6 +2786,7 @@ vn_locked_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	*len += addend;
 	return (0);
 }
+
 /*
  * Resolve an arbitrary vnode to a pathname.
  *
@@ -2833,7 +2834,7 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
  * This function works same as vn_fullpath_any but for locked vnode.
  */
 static int
-vn_locked_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
+vn_fullpath_any_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
     char *buf, char **retbuf, size_t *buflen)
 {
 	size_t orig_buflen;
@@ -2849,7 +2850,7 @@ vn_locked_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
 		buf[*buflen] = '\0';
-		error = vn_locked_vptocnp(&vp, td->td_ucred, buf, buflen);
+		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, buflen);
 		if (error)
 			return (error);
 		lktype = VOP_ISLOCKED(vp);
@@ -2868,9 +2869,10 @@ vn_locked_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			    buflen, slash_prefixed, orig_buflen - *buflen));
 	}
 
-	return (vn_locked_fullpath_dir(td, vp, rdir, buf, retbuf, buflen,
+	return (vn_fullpath_dir_locked(td, vp, rdir, buf, retbuf, buflen,
 	    slash_prefixed, orig_buflen - *buflen));
 }
+
 /*
  * Resolve an arbitrary vnode to a pathname (taking care of hardlinks).
  *
