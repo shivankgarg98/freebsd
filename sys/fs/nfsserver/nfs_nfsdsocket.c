@@ -1061,6 +1061,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				if (vp)
 					vrele(vp);
 				vp = nvp;
+				AUDIT_NFSARG_VNODE1(nd, vp);
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
 				NFSVOPUNLOCK(vp);
 				vpnes = nes;
@@ -1076,6 +1077,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 				if (vp)
 					vrele(vp);
 				vp = nvp;
+				AUDIT_NFSARG_VNODE1(nd, vp);
 				cur_fsid = vp->v_mount->mnt_stat.f_fsid;
 				NFSVOPUNLOCK(vp);
 				vpnes = nes;
@@ -1089,6 +1091,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 					if (vp)
 						vrele(vp);
 					vp = nvp;
+					AUDIT_NFSARG_VNODE1(nd, vp);
 					cur_fsid = vp->v_mount->mnt_stat.f_fsid;
 					NFSVOPUNLOCK(vp);
 					vpnes = nes;
@@ -1099,6 +1102,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		case NFSV4OP_SAVEFH:
 			if (vp && NFSVNO_EXPORTED(&vpnes)) {
 				nd->nd_repstat = 0;
+				AUDIT_NFSARG_VNODE1(nd, vp);
 				/* If vp == savevp, a no-op */
 				if (vp != savevp) {
 					if (savevp)
@@ -1120,6 +1124,7 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		case NFSV4OP_RESTOREFH:
 			if (savevp) {
 				nd->nd_repstat = 0;
+				AUDIT_NFSARG_VNODE1(nd, savevp);
 				/* If vp == savevp, a no-op */
 				if (vp != savevp) {
 					VREF(savevp);

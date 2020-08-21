@@ -3465,8 +3465,10 @@ nfsrvd_openconfirm(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if ((nd->nd_flag & ND_NFSV41) != 0) {
 		nd->nd_repstat = NFSERR_NOTSUPP;
+		AUDIT_NFSARG_TEXT(nd, "NFSv4 service not supported");
 		goto nfsmout;
 	}
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID + NFSX_UNSIGNED);
@@ -3520,6 +3522,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 	nfsquad_t clientid;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	/* opendowngrade can only work on a file object.*/
 	if (vp->v_type != VREG) {
 		error = NFSERR_INVAL;
@@ -3583,6 +3586,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 	default:
 		nd->nd_repstat = NFSERR_INVAL;
 	}
+	AUDIT_NFSARG_FFLAGS(nd, stp->ls_flags);
 
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
@@ -3688,6 +3692,8 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 		nfsvno_relpathbuf(&named);
 		goto out;
 	}
+	AUDIT_NFSARG_UPATH1_VP(nd, p, named.ni_rootdir, dp,
+	    named.ni_cnd.cn_pnbuf);
 	if (!nd->nd_repstat) {
 		nd->nd_repstat = nfsvno_namei(nd, &named, dp, 1, exp, p, &dirp);
 	} else {
@@ -3702,6 +3708,7 @@ nfsrvd_secinfo(struct nfsrv_descript *nd, int isdgram,
 	nfsvno_relpathbuf(&named);
 	fh.nfsrvfh_len = NFSX_MYFH;
 	vp = named.ni_vp;
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	nd->nd_repstat = nfsvno_getfh(vp, (fhandle_t *)fh.nfsrvfh_data, p);
 	vput(vp);
 	savflag = nd->nd_flag;

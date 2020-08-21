@@ -1943,14 +1943,46 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_OPENCONFIRM:
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_OPENDOWNGRADE:
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(1, "ls_flags", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_PUTFH:
 	case AUE_NFSV4OP_PUTPUBFH:
 	case AUE_NFSV4OP_PUTROOTFH:
-	case AUE_NFSV4OP_RENEW:
 	case AUE_NFSV4OP_RESTOREFH:
 	case AUE_NFSV4OP_SAVEFH:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
+	case AUE_NFSV4OP_RENEW:
+		break;
+
 	case AUE_NFSV4OP_SECINFO:
+		/* secinfo like flag and flavor can be audited*/
+		UPATH1_VNODE1_TOKENS;
+		break;
+
 	case AUE_NFSV4OP_SETCLIENTID:
 	case AUE_NFSV4OP_SETCLIENTIDCFRM:
 	case AUE_NFSV4OP_RELEASELCKOWN:
