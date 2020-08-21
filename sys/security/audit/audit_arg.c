@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 /*
  * Calls to manipulate elements of the audit record structure from system
  * call code.  Macro wrappers will prevent this functions from being entered
@@ -1054,18 +1057,18 @@ audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
 
 	bcopy(sa, &ar->k_ar.ar_arg_sockaddr, sa->sa_len);
 	switch (sa->sa_family) {
-//#ifdef INET
+#ifdef INET
 	case AF_INET:
 		ARG_SET_VALID(ar, ARG_SADDRINET);
 		break;
-//#endif
-//#ifdef INET6
+#endif
+#ifdef INET6
 	case AF_INET6:
 		ARG_SET_VALID(ar, ARG_SADDRINET6);
 		break;
-//#endif
+#endif
 	default:
-		printf/*panic*/("audit_nfsarg_netsockaddr: invalid sa_family");
+		panic("audit_nfsarg_netsockaddr: invalid sa_family");
 	}
 }
 
