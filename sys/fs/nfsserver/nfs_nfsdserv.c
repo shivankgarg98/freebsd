@@ -2416,6 +2416,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
+		AUDIT_NFSARG_VALUE(nd, clientid.qval);
 		error = nfsrv_mtostr(nd, stp->ls_owner, stp->ls_ownerlen);
 		if (error)
 			goto nfsmout;
@@ -2462,6 +2463,7 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
+		AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	}
 	lop = malloc(sizeof (struct nfslock),
 		M_NFSDLOCK, M_WAITOK);
@@ -2623,6 +2625,7 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	error = nfsrv_mtostr(nd, stp->ls_owner, stp->ls_ownerlen);
 	if (error)
 		goto nfsmout;
@@ -2758,6 +2761,7 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	if (!nd->nd_repstat && vnode_vtype(vp) != VREG) {
 	    if (vnode_vtype(vp) == VDIR)
 		nd->nd_repstat = NFSERR_ISDIR;
@@ -3383,6 +3387,7 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	nd->nd_repstat = nfsrv_delegupdate(nd, clientid, NULL, NULL,
 	    NFSV4OP_DELEGPURGE, nd->nd_cred, p, NULL);
 nfsmout:
@@ -3421,6 +3426,7 @@ nfsrvd_delegreturn(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	nd->nd_repstat = nfsrv_delegupdate(nd, clientid, &stateid, vp,
 	    NFSV4OP_DELEGRETURN, nd->nd_cred, p, &writeacc);
 	/* For pNFS, update the attributes. */
@@ -3494,6 +3500,7 @@ nfsrvd_openconfirm(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid, nd, p,
 	    NULL);
 	if (!nd->nd_repstat) {
@@ -3601,6 +3608,7 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	if (!nd->nd_repstat)
 		nd->nd_repstat = nfsrv_openupdate(vp, stp, clientid, &stateid,
 		    nd, p, NULL);
@@ -3654,6 +3662,7 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	nd->nd_repstat = nfsrv_getclient(clientid, (CLOPS_RENEWOP|CLOPS_RENEW),
 	    NULL, NULL, (nfsquad_t)((u_quad_t)0), 0, nd, p);
 nfsmout:
@@ -3908,6 +3917,7 @@ nfsrvd_setclientid(struct nfsrv_descript *nd, __unused int isdgram,
 		free(clp, M_NFSDCLIENT);
 	}
 	if (!nd->nd_repstat) {
+		AUDIT_NFSARG_VALUE(nd, clientid.qval);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_HYPER);
 		*tl++ = clientid.lval[0];
 		*tl++ = clientid.lval[1];
@@ -3955,6 +3965,7 @@ nfsrvd_setclientidcfrm(struct nfsrv_descript *nd,
 	clientid.lval[1] = *tl++;
 	confirm.lval[0] = *tl++;
 	confirm.lval[1] = *tl;
+	AUDIT_NFSARG_VALUE(nd, confirm.qval);
 
 	/*
 	 * nfsrv_getclient() searches the client list for a match and
@@ -4078,6 +4089,7 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	error = nfsrv_mtostr(nd, stp->ls_owner, len);
 	if (error)
 		goto nfsmout;
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 	nd->nd_repstat = nfsrv_releaselckown(stp, clientid, p);
 	free(stp, M_NFSDSTATE);
 
@@ -4220,6 +4232,7 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 		free(clp, M_NFSDCLIENT);
 	}
 	if (nd->nd_repstat == 0) {
+		AUDIT_NFSARG_VALUE(nd, clientid.qval);
 		if (confirm.lval[1] != 0)
 			v41flags |= NFSV4EXCH_CONFIRMEDR;
 		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER + 3 * NFSX_UNSIGNED);
@@ -4328,6 +4341,7 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 
 	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 	sep->sess_cbprogram = fxdr_unsigned(uint32_t, *tl);
+	AUDIT_NFSARG_VALUE(nd, clientid.qval);
 
 	/*
 	 * nfsrv_getclient() searches the client list for a match and
@@ -4594,6 +4608,7 @@ nfsrvd_layoutget(struct nfsrv_descript *nd, __unused int isdgram,
 	char *layp;
 	struct thread *p = curthread;
 
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		goto nfsmout;
@@ -4695,6 +4710,7 @@ nfsrvd_layoutcommit(struct nfsrv_descript *nd, __unused int isdgram,
 	struct thread *p = curthread;
 
 	layp = NULL;
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		goto nfsmout;
@@ -4778,6 +4794,7 @@ nfsrvd_layoutreturn(struct nfsrv_descript *nd, __unused int isdgram,
 	struct thread *p = curthread;
 
 	layp = NULL;
+	AUDIT_NFSARG_VNODE1(nd, vp);
 	if (nfs_rootfhset == 0 || nfsd_checkrootexp(nd) != 0) {
 		nd->nd_repstat = NFSERR_WRONGSEC;
 		goto nfsmout;

@@ -1903,9 +1903,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_DELEGPURGE:
-		break;
-
 	case AUE_NFSV4OP_DELEGRETURN:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		/* FALLTHROUGH */
+
 	case AUE_NFSV4OP_GETFH:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
@@ -1916,12 +1920,16 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_NFSV4OP_LOCK:
 	case AUE_NFSV4OP_LOCKT:
 	case AUE_NFSV4OP_LOCKU:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(1, "flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
-		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
-			tok = au_to_attr32(&ar->ar_arg_vnode1);
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
 			kau_write(rec, tok);
 		}
 		break;
@@ -1943,23 +1951,32 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_OPENCONFIRM:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
 		if (ARG_IS_VALID(kar, ARG_TEXT)) {
 			tok = au_to_text(ar->ar_arg_text);
 			kau_write(rec, tok);
+			break;
 		}
-		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
-			tok = au_to_attr32(&ar->ar_arg_vnode1);
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
 			kau_write(rec, tok);
 		}
 		break;
 
 	case AUE_NFSV4OP_OPENDOWNGRADE:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(1, "ls_flags", ar->ar_arg_fflags);
 			kau_write(rec, tok);
 		}
-		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
-			tok = au_to_attr32(&ar->ar_arg_vnode1);
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
 			kau_write(rec, tok);
 		}
 		break;
@@ -1976,27 +1993,60 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_RENEW:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
 		break;
 
 	case AUE_NFSV4OP_SECINFO:
-		/* secinfo like flag and flavor can be audited*/
+		/* secinfo like flag(64 bit) and flavor can be audited. */
 		UPATH1_VNODE1_TOKENS;
 		break;
 
 	case AUE_NFSV4OP_SETCLIENTID:
 	case AUE_NFSV4OP_SETCLIENTIDCFRM:
 	case AUE_NFSV4OP_RELEASELCKOWN:
+		/* XXX: client id (64 bit type) if I audit it using
+		 * ar_arg_value(long type), Will it cause trouble on some
+		 * architecture??
+		 */
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_BINDCONNTOSESS:
+		/* XXX: Session id(128 bit) do I need to audit? */
+		break;
+
 	case AUE_NFSV4OP_EXCHANGEID:
 	case AUE_NFSV4OP_CREATESESSION:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_DESTROYSESSION:
 	case AUE_NFSV4OP_FREESTATEID:
 	case AUE_NFSV4OP_GETDEVINFO:
+		break;
+
 	case AUE_NFSV4OP_LAYOUTCOMMIT:
 	case AUE_NFSV4OP_LAYOUTGET:
 	case AUE_NFSV4OP_LAYOUTRETURN:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_SEQUENCE:
 	case AUE_NFSV4OP_TESTSTATEID:
+		break;
+
 	case AUE_NFSV4OP_DESTROYCLIENTID:
 	case AUE_NFSV4OP_RECLAIMCOMPL:
 	case AUE_NFSV4OP_ALLOCATE:
