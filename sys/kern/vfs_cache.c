@@ -2366,6 +2366,8 @@ vn_fullpath(struct thread *td, struct vnode *vn, char **retbuf, char **freebuf)
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	pwd = pwd_hold(td);
+	if ((td->td_flags & 0x00800000) == 0x00800000)
+		printf("audit vn_fullpath flag set and %d\n", VOP_ISLOCKED(vn));
 	error = vn_fullpath_any(td, vn, pwd->pwd_rdir, buf, retbuf, &buflen);
 	pwd_drop(pwd);
 
@@ -2389,7 +2391,8 @@ vn_fullpath_global(struct thread *td, struct vnode *vn,
 	char *buf;
 	size_t buflen;
 	int error, lktype;
-
+	if ((td->td_flags & 0x00800000) == 0x00800000)
+		printf("audit vn_fullpath_global flag set and %d\n", VOP_ISLOCKED(vn));
 	if (__predict_false(vn == NULL))
 		return (EINVAL);
 	lktype = VOP_ISLOCKED(vn);
@@ -2573,10 +2576,11 @@ vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
 	}
 
 	error = 0;
-
 	SDT_PROBE1(vfs, namecache, fullpath, entry, vp);
 	counter_u64_add(numfullpathcalls, 1);
 	islocked = (VOP_ISLOCKED(vp)) ? true : false;
+	if ((td->td_flags & 0x00800000) == 0x00800000)
+		printf("vn_fullpath_dir flag set and %d\n", VOP_ISLOCKED(vp));
 	while (vp != rdir && vp != rootvnode) {
 		/*
 		 * The vp vnode must be already fully constructed,
@@ -2717,6 +2721,8 @@ vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
 		buf[*buflen] = '/';
 		slash_prefixed = true;
 	}
+	if ((td->td_flags & 0x00800000) == 0x00800000)
+		printf("vn_fullpath_any flag set and %d\n", VOP_ISLOCKED(vp));
 
 	return (vn_fullpath_dir(td, vp, rdir, buf, retbuf, buflen, slash_prefixed,
 	    orig_buflen - *buflen));
