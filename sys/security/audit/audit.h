@@ -588,6 +588,8 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_NFSARG_VALUE(nd, value)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
 
+#define	AUDITING_NFS(nd)		0
+
 #define	AUDIT_NFSRPC_ENTER(nd, td)	0
 #define	AUDIT_NFSRPC_EXIT(nd, td)
 

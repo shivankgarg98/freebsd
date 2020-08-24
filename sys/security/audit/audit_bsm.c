@@ -1786,6 +1786,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	/* TODO XXX: Should I also log NFS file handle? The sycalls events generally log
 	 * FD VNODE and UPATH tokens. Following that analogy the NFS RPC event can
 	 * can log filehandle. */
+	/*
+	 * XXX TODO: fix NFS error code in bsm_errno. */
 	case AUE_NFSRPC_GETATTR:
 	case AUE_NFSRPC_SETATTR:
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
