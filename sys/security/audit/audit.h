@@ -188,6 +188,8 @@ void	 audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
 	    struct vnode *rdir, struct vnode *cdir, char *upath);
 void	 audit_nfsarg_value(struct kaudit_record *ar, long value);
 void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
+void	 audit_nfsarg_vnode2(struct kaudit_record *ar, struct vnode *vp);
+
 /*
  * Define macros to wrap the audit_arg_* calls by checking the global
  * audit_syscalls_enabled flag before performing the actual call.
@@ -507,6 +509,11 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 		audit_nfsarg_vnode1((nd)->nd_ar, (vp));			\
 } while (0)
 
+#define	AUDIT_NFSARG_VNODE2(nd, vp) do {				\
+	if (AUDITING_NFS(nd))						\
+		audit_nfsarg_vnode2((nd)->nd_ar, (vp));			\
+} while (0)
+
 #define	AUDIT_NFSRPC_ENTER(nd, td)	({				\
 	bool _audit_entered = false;					\
 	if (__predict_false(audit_syscalls_enabled)) {			\
@@ -594,6 +601,9 @@ void	 audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp);
 #define	AUDIT_NFSARG_UPATH2_VP(nd, td, rdir, cdir, upath)
 #define	AUDIT_NFSARG_VALUE(nd, value)
 #define	AUDIT_NFSARG_VNODE1(nd, vp)
+#define	AUDIT_NFSARG_VNODE2(nd, vp)
+
+#define	AUDITING_NFS(nd)		0
 
 #define	AUDIT_NFSRPC_ENTER(nd, td)	0
 #define	AUDIT_NFSRPC_EXIT(nd, td)

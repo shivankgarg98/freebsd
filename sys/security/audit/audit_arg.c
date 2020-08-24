@@ -1182,3 +1182,33 @@ audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
 	if (error == 0)
 		ARG_SET_VALID(ar, ARG_VNODE1);
 }
+
+void
+audit_nfsarg_vnode2(struct kaudit_record *ar, struct vnode *vp)
+{
+	int error, lktype = 0;
+
+	/* Page fault panic occur if vnode *vp is NULL. */
+	KASSERT(vp != NULL, ("audit_nfsarg_vnode2: vp == NULL"));
+
+	if (ar == NULL)
+		return;
+
+	lktype = VOP_ISLOCKED(vp);
+	/*XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?*/
+	ARG_CLEAR_VALID(ar, ARG_VNODE2);
+	/* Hold the vnode lock for VOP_GETTR call. */
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
+		vref(vp);
+		if (vn_lock(vp, LK_SHARED | LK_NOWAIT)) {
+			vrele(vp);
+			return;
+		}
+	}
+	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode2);
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
+		vput(vp);
+	}
+	if (error == 0)
+		ARG_SET_VALID(ar, ARG_VNODE2);
+}

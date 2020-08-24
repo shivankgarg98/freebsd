@@ -1888,6 +1888,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	 * nfsrvd_compound RPC record is also an overview record for the
 	 * subsequent NFSv4 suboperation records.
 	 */
+	/*
+	 * XXX: TODO remove "NFSv4 service not supported" TEXT in audit.
+	 * This text is unnecessary, since the return value will indicate
+	 * the error reason. (TODO: fix the bsm error code for NFS).
+	 */
 	case AUE_NFSV4RPC_COMPOUND:
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
 			tok = au_to_arg32(1, "Num of subops", ar->ar_arg_value);
@@ -1954,11 +1959,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
 			tok = au_to_attr32(&ar->ar_arg_vnode1);
 			kau_write(rec, tok);
-		}
-		if (ARG_IS_VALID(kar, ARG_TEXT)) {
-			tok = au_to_text(ar->ar_arg_text);
-			kau_write(rec, tok);
-			break;
 		}
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
 			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
@@ -2048,17 +2048,100 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_NFSV4OP_DESTROYCLIENTID:
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_RECLAIMCOMPL:
+		break;
+
 	case AUE_NFSV4OP_ALLOCATE:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_COPY:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		VNODE2_TOKENS;
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "clientid val", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_IOADVISE:
-	case AUE_NFSV4OP_LAYOUTERROR:
+	case AUE_NFSV4OP_LAYOUTERROR: /* 16 byte devid audit? */
 	case AUE_NFSV4OP_LAYOUTSTATS:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_SEEK:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) { /* Data or Hole */
+			tok = au_to_arg32(1, "content", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_VALUE)) {
+			tok = au_to_arg32(1, "offset", ar->ar_arg_value);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_GETXATTR:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_SETXATTR:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
+			tok = au_to_arg32(1, "option", ar->ar_arg_fflags);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_LISTXATTRS:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		break;
+
 	case AUE_NFSV4OP_REMOVEXATTR:
+		if (ARG_IS_VALID(kar, ARG_VNODE1)) {
+			tok = au_to_attr32(&ar->ar_arg_vnode1);
+			kau_write(rec, tok);
+		}
+		if (ARG_IS_VALID(kar, ARG_TEXT)) {
+			tok = au_to_text(ar->ar_arg_text);
+			kau_write(rec, tok);
+		}
 		break;
 
 	/* Unsupported NFSv4 Services. */
