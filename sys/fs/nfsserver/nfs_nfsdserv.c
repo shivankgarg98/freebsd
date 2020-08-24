@@ -3258,6 +3258,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	} else if (vp) {
 		vrele(vp);
 	}
+	printf("hi");
 	if (dirp)
 		vrele(dirp);
 #ifdef NFS4_ACL_EXTATTR_NAME
@@ -3266,6 +3267,8 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSEXITCODE2(0, nd);
 	return (0);
 nfsmout:
+	if (error || nd->nd_repstat)
+		printf("nfsrvd_open error %d, nd->repstat %d\n", error, nd->nd_repstat);
 	vrele(dp);
 #ifdef NFS4_ACL_EXTATTR_NAME
 	acl_free(aclp);

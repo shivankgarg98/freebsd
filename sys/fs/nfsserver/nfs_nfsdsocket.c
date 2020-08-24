@@ -1303,12 +1303,12 @@ nfsrvd_compound(struct nfsrv_descript *nd, int isdgram, u_char *tag,
 		} else {
 			*repp = 0;	/* NFS4_OK */
 		}
-		*nd->nd_errp = *repp;
+	//	*nd->nd_errp = *repp;
 		AUDIT_NFSRPC_EXIT(nd, p);
 		audit_notexited = false;
 	}
 	if (audit_notexited) {
-		*nd->nd_errp = nfsd_errmap(nd);
+	//	*nd->nd_errp = nfsd_errmap(nd);
 		AUDIT_NFSRPC_EXIT(nd, p);
 	}
 nfsmout:
