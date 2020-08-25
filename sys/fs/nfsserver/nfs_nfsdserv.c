@@ -2125,7 +2125,9 @@ nfsrvd_commit(struct nfsrv_descript *nd, __unused int isdgram,
 		nfsrv_wcc(nd, for_ret, &bfor, aft_ret, &aft);
 		goto out;
 	}
+
 	AUDIT_NFSARG_VNODE1(nd, vp);
+
 	/* Return NFSERR_ISDIR in NFSv4 when commit on a directory. */
 	if (vp->v_type != VREG) {
 		if (nd->nd_flag & ND_NFSV3)
@@ -3172,6 +3174,7 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	if (!nd->nd_repstat)
 	    nd->nd_repstat = nfsrv_openctrl(nd, vp, &stp, clientid, &stateid,
 		&delegstateid, &rflags, exp, p, nva.na_filerev);
+
 	printf("** 2, %d\n", nd->nd_repstat);
 	/*
 	 * vp must be unlocked before the call to nfsvno_getattr(dirp,...)
@@ -5825,6 +5828,7 @@ nfsrvd_rmxattr(struct nfsrv_descript *nd, __unused int isdgram,
 	error = nfsrv_mtostr(nd, name, len);
 	if (error != 0)
 		goto nfsmout;
+
 	AUDIT_NFSARG_TEXT(nd, name);
 	if ((nd->nd_flag & ND_IMPLIEDCLID) == 0) {
 		printf("EEK! nfsrvd_rmxattr: no implied clientid\n");
