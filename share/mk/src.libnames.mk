@@ -89,6 +89,7 @@ _LIBRARIES=	\
 		cap_dns \
 		cap_fileargs \
 		cap_grp \
+		cap_net \
 		cap_pwd \
 		cap_sysctl \
 		cap_syslog \
@@ -320,7 +321,7 @@ _DP_dpv=	dialog figpar util ncursesw
 _DP_dialog=	ncursesw m
 _DP_cuse=	pthread
 _DP_atf_cxx=	atf_c
-_DP_gtest=	pthread
+_DP_gtest=	pthread regex
 _DP_gmock=	gtest
 _DP_gmock_main=	gmock
 _DP_gtest_main=	gtest
@@ -637,6 +638,7 @@ LIBBSNMPDIR=	${OBJTOP}/lib/libbsnmp/libbsnmp
 LIBCASPERDIR=	${OBJTOP}/lib/libcasper/libcasper
 LIBCAP_DNSDIR=	${OBJTOP}/lib/libcasper/services/cap_dns
 LIBCAP_GRPDIR=	${OBJTOP}/lib/libcasper/services/cap_grp
+LIBCAP_NETDIR=	${OBJTOP}/lib/libcasper/services/cap_net
 LIBCAP_PWDDIR=	${OBJTOP}/lib/libcasper/services/cap_pwd
 LIBCAP_SYSCTLDIR=	${OBJTOP}/lib/libcasper/services/cap_sysctl
 LIBCAP_SYSLOGDIR=	${OBJTOP}/lib/libcasper/services/cap_syslog
