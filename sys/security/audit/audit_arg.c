@@ -59,6 +59,9 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 #include <security/audit/audit_private.h>
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 /*
  * Calls to manipulate elements of the audit record structure from system
  * call code.  Macro wrappers will prevent this functions from being entered
@@ -1018,4 +1021,158 @@ audit_sysclose(struct thread *td, int fd)
 	audit_arg_vnode1(vp);
 	VOP_UNLOCK(vp);
 	fdrop(fp, td);
+}
+
+/* NFS RPC related audit args */
+void
+audit_nfsarg_dev(struct kaudit_record *ar, int dev)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_dev = dev;
+	ARG_SET_VALID(ar, ARG_DEV);
+}
+
+void
+audit_nfsarg_mode(struct kaudit_record *ar, mode_t mode)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_mode = mode;
+	ARG_SET_VALID(ar, ARG_MODE);
+}
+
+void
+audit_nfsarg_netsockaddr(struct kaudit_record *ar, struct sockaddr *sa)
+{
+
+	KASSERT(sa != NULL, ("audit_nfsarg_sockaddr: sa == NULL"));
+
+	if (ar == NULL)
+		return;
+
+	bcopy(sa, &ar->k_ar.ar_arg_sockaddr, sa->sa_len);
+	switch (sa->sa_family) {
+#ifdef INET
+	case AF_INET:
+		ARG_SET_VALID(ar, ARG_SADDRINET);
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		ARG_SET_VALID(ar, ARG_SADDRINET6);
+		break;
+#endif
+	default:
+		panic("audit_nfsarg_netsockaddr: invalid sa_family");
+	}
+}
+
+void
+audit_nfsarg_socket(struct kaudit_record *ar, int sodomain, int sotype,
+    int soprotocol)
+{
+
+	if (ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_sockinfo.so_domain = sodomain;
+	ar->k_ar.ar_arg_sockinfo.so_type = sotype;
+	ar->k_ar.ar_arg_sockinfo.so_protocol = soprotocol;
+	ARG_SET_VALID(ar, ARG_SOCKINFO);
+}
+
+void
+audit_nfsarg_text(struct kaudit_record *ar, const char *text)
+{
+
+	KASSERT(text != NULL, ("audit_arg_text: text == NULL"));
+	if (ar == NULL)
+		return;
+
+	/* Invalidate the text string */
+	ar->k_ar.ar_valid_arg &= (ARG_ALL ^ ARG_TEXT);
+
+	if (ar->k_ar.ar_arg_text == NULL)
+		ar->k_ar.ar_arg_text = malloc(MAXPATHLEN, M_AUDITTEXT,
+		    M_WAITOK);
+
+	strncpy(ar->k_ar.ar_arg_text, text, MAXPATHLEN);
+	ARG_SET_VALID(ar, ARG_TEXT);
+}
+
+void
+audit_nfsarg_upath1_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath)
+{
+
+	if (ar == NULL)
+		return;
+
+	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath1);
+
+	ARG_SET_VALID(ar, ARG_UPATH1);
+}
+
+void
+audit_nfsarg_upath2_vp(struct kaudit_record *ar, struct thread *td,
+    struct vnode *rdir, struct vnode *cdir, char *upath)
+{
+
+	if (ar == NULL)
+		return;
+
+	audit_arg_upath_vp(td, rdir, cdir, upath, &ar->k_ar.ar_arg_upath2);
+
+	ARG_SET_VALID(ar, ARG_UPATH2);
+}
+
+void
+audit_nfsarg_value(struct kaudit_record *ar, long value)
+{
+
+	if(ar == NULL)
+		return;
+
+	ar->k_ar.ar_arg_value = value;
+	ARG_SET_VALID(ar,ARG_VALUE);
+}
+
+void
+audit_nfsarg_vnode1(struct kaudit_record *ar, struct vnode *vp)
+{
+	int error, lktype = 0;
+
+	/* Page fault panic occur if vnode *vp is NULL. */
+	KASSERT(vp != NULL, ("audit_nfsarg_vnode1: vp == NULL"));
+
+	if (ar == NULL)
+		return;
+
+	lktype = VOP_ISLOCKED(vp);
+	/*
+	 * As well as returning 0 for unlocked, VOP_ISLOCKED can return
+	 * LK_EXCLOTHER for another thread holding a lock on it.
+	 *
+	 * XXX: audit_arg_vnode uses td_ucread. do we need nd_cr for NFS?
+	 */
+	ARG_CLEAR_VALID(ar, ARG_VNODE1);
+	/* Hold the vnode lock for VOP_GETTR call. */
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
+		vref(vp);
+		if (vn_lock(vp, LK_SHARED | LK_NOWAIT)) {
+			vrele(vp);
+			return;
+		}
+	}
+	error = audit_arg_vnode(vp, &ar->k_ar.ar_arg_vnode1);
+	if (lktype != LK_EXCLUSIVE && lktype != LK_SHARED) {
+		vput(vp);
+	}
+	if (error == 0)
+		ARG_SET_VALID(ar, ARG_VNODE1);
 }

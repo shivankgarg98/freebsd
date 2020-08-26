@@ -82,6 +82,10 @@ extern int			audit_arge;
 #define	BSM_FAILURE	1
 #define	BSM_NOAUDIT	2
 
+/* Audit record type to differentiate between syscall and NFS record. */
+#define	AUDIT_SYSCALL_RECORD	0
+#define	AUDIT_NFSRPC_RECORD	1
+
 /*
  * Defines for the kernel audit record k_ar_commit field.  Flags are set to
  * indicate what sort of record it is, and which preselection mechanism
@@ -330,6 +334,7 @@ struct kaudit_record {
 	u_int				 k_ulen;	/* User data length. */
 	struct uthread			*k_uthread;	/* Audited thread. */
 	void				*k_dtaudit_state;
+	int				 kaudit_record_type;
 	TAILQ_ENTRY(kaudit_record)	 k_q;
 };
 TAILQ_HEAD(kaudit_queue, kaudit_record);
@@ -342,6 +347,7 @@ void			 audit_abort(struct kaudit_record *ar);
 void			 audit_commit(struct kaudit_record *ar, int error,
 			    int retval);
 struct kaudit_record	*audit_new(int event, struct thread *td);
+struct kaudit_record	*audit_nfs_new(int event, struct nfsrv_descript *nd);
 
 /*
  * Function to update the audit_syscalls_enabled flag, whose value is affected

@@ -28,6 +28,9 @@
  * $FreeBSD$
  */
 
+#ifndef _NFS_NFSDPORT_H_
+#define _NFS_NFSDPORT_H_
+
 /*
  * These macros handle nfsvattr fields. They look a bit silly here, but
  * are quite different for the Darwin port.
@@ -116,3 +119,4 @@ struct nfsexstuff {
 			printf(__VA_ARGS__);				\
 	} while (0)
 
+#endif /* _NFS_NFSDPORT_H_ */

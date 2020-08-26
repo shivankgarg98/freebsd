@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 FEATURE(audit, "BSM audit support");
 
 static uma_zone_t	audit_record_zone;
+static uma_zone_t	audit_nfsrecord_zone;
 static MALLOC_DEFINE(M_AUDITCRED, "audit_cred", "Audit cred storage");
 MALLOC_DEFINE(M_AUDITDATA, "audit_data", "Audit data storage");
 MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
@@ -274,6 +275,7 @@ audit_record_ctor(void *mem, int size, void *arg, int flags)
 	bzero(ar, sizeof(*ar));
 	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
 	nanotime(&ar->k_ar.ar_starttime);
+	ar->kaudit_record_type = AUDIT_SYSCALL_RECORD;
 
 	/*
 	 * Export the subject credential.
@@ -327,6 +329,44 @@ audit_record_dtor(void *mem, int size, void *arg)
 }
 
 /*
+ * Construct an audit record for the passed nfs server
+ * request description.
+ */
+static int
+audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
+{
+	struct kaudit_record *ar;
+	struct nfsrv_descript *nd;
+	struct ucred *cred;
+
+	KASSERT(sizeof(*ar) == size, ("audit_nfsrecord_ctor: wrong size"));
+
+	nd = arg;
+	ar = mem;
+	bzero(ar, sizeof(*ar));
+	ar->k_ar.ar_magic = AUDIT_RECORD_MAGIC;
+	nanotime(&ar->k_ar.ar_starttime);
+	ar->kaudit_record_type = AUDIT_NFSRPC_RECORD;
+
+	/*
+	 * Export the subject credential.
+	 */
+	cred = nd->nd_cred;
+	cru2x(cred, &ar->k_ar.ar_subj_cred);
+	ar->k_ar.ar_subj_ruid = cred->cr_ruid;
+	ar->k_ar.ar_subj_rgid = cred->cr_rgid;
+	ar->k_ar.ar_subj_egid = cred->cr_groups[0];
+	ar->k_ar.ar_subj_auid = cred->cr_audit.ai_auid;
+	ar->k_ar.ar_subj_asid = cred->cr_audit.ai_asid;
+	ar->k_ar.ar_subj_pid = 0;
+	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
+	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
+	ar->k_ar.ar_jailname[0] = '\0';
+
+	return (0);
+}
+
+/*
  * Initialize the Audit subsystem: configuration state, work queue,
  * synchronization primitives, worker thread, and trigger device node.  Also
  * call into the BSM assembly code to initialize it.
@@ -368,6 +408,10 @@ audit_init(void)
 
 	audit_record_zone = uma_zcreate("audit_record",
 	    sizeof(struct kaudit_record), audit_record_ctor,
+	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
+
+	audit_nfsrecord_zone = uma_zcreate("audit_nfsrecord",
+	    sizeof(struct kaudit_record), audit_nfsrecord_ctor,
 	    audit_record_dtor, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	/* First initialisation of audit_syscalls_enabled. */
@@ -437,11 +481,44 @@ audit_new(int event, struct thread *td)
 	return (ar);
 }
 
+struct kaudit_record *
+audit_nfs_new(int event, struct nfsrv_descript *nd)
+{
+	struct kaudit_record *ar;
+
+	/* This below comment statement (copied from audit_new) becomes untrue in case NFS audit
+	 * records are created. Would this create any problem??
+	 * Note: the number of outstanding uncommitted audit records is
+	 * limited to the number of concurrent threads servicing system calls
+	 * in the kernel.
+	 */
+
+	ar = uma_zalloc_arg(audit_nfsrecord_zone, nd, M_WAITOK);
+	ar->k_ar.ar_event = event;
+
+	mtx_lock(&audit_mtx);
+	audit_pre_q_len++;
+	mtx_unlock(&audit_mtx);
+
+	return (ar);
+}
+
 void
 audit_free(struct kaudit_record *ar)
 {
 
-	uma_zfree(audit_record_zone, ar);
+	switch (ar->kaudit_record_type) {
+	case AUDIT_SYSCALL_RECORD:
+		uma_zfree(audit_record_zone, ar);
+		break;
+
+	case AUDIT_NFSRPC_RECORD:
+		uma_zfree(audit_nfsrecord_zone, ar);
+		break;
+
+	default:
+		panic("audit_free: invalid case");
+	}
 }
 
 void
@@ -729,6 +806,93 @@ audit_syscall_exit(int error, struct thread *td)
 	audit_commit(td->td_ar, error, retval);
 	td->td_ar = NULL;
 	td->td_pflags &= ~TDP_AUDITREC;
+}
+
+/*
+ * audit_nfsrpc_enter is called before NFS server is about to do a RPC.
+ * This function is very similiar to audit_syscall_enter.
+ */
+void
+audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
+{
+	struct au_mask *aumask;
+	au_class_t class;
+	au_event_t event;
+	au_id_t auid;
+	int record_needed;
+
+	KASSERT(nd->nd_ar == NULL, ("audit_nfsrpc_enter: nd->nd_ar != NULL"));
+	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
+	    ("audit_nfsrpc_enter: ND_AUDITREC set"));
+
+	/* Currently, NFSv4 is not supported. */
+	if (!(nd->nd_flag & ND_NFSV4))
+		event = nfsrv_auevent[nd->nd_procnum];
+	else
+		event = AUE_NULL;
+	/* NFS Procedure NULL do nothing. So, no need to audit this event. */
+	if (event == AUE_NULL)
+		return;
+
+	memcpy(&(nd->nd_cred->cr_audit), &(td->td_ucred->cr_audit),
+	    sizeof(struct auditinfo_addr));
+
+	/*
+	 * The auid for NFS Audit events is AU_DEFAUDITID. The kernel
+	 * non-attributable event mask is used as audit mask as all NFS Audit
+	 * events are triggered from within the kernel.
+	 */
+	auid = nd->nd_cred->cr_audit.ai_auid;
+
+	KASSERT(auid == AU_DEFAUDITID,
+	    ("audit_nfsrpc_enter: NFS auid != AU_DEFAUDITID"));
+
+	aumask = &audit_nae_mask;
+	class = au_event_class(event);
+	if (au_preselect(event, class, aumask, AU_PRS_BOTH)) {
+		/*
+		 * If we're out of space and need to suspend unprivileged
+		 * processes, do that here rather than trying to allocate
+		 * another audit record.
+		 */
+		if (audit_in_failure &&
+		    priv_check(td, PRIV_AUDIT_FAILSTOP) != 0) {
+			cv_wait(&audit_fail_cv, &audit_mtx);
+			panic("audit_failing_stop: thread continued");
+		}
+		record_needed = 1;
+	} else if (audit_pipe_preselect(auid, event, class, AU_PRS_BOTH, 0)) {
+		record_needed = 1;
+	} else {
+		record_needed = 0;
+	}
+	if (record_needed) {
+		nd->nd_ar = audit_nfs_new(event, nd);
+		if (nd->nd_ar != NULL)
+			nd->nd_flag |= ND_AUDITREC;
+	} else
+		nd->nd_ar = NULL;
+}
+
+/*
+ * audit_nfsrpc_exit is called each time after NFS server has completed a
+ * RPC call. This function is very similiar to audit_syscall_exit.
+ */
+void
+audit_nfsrpc_exit(struct nfsrv_descript *nd, __unused struct thread *td)
+{
+	int retval;
+	int error;
+
+	error = nd->nd_repstat;
+	if (error)
+		retval = -1;
+	else
+		retval = *(nd->nd_errp);
+
+	audit_commit(nd->nd_ar, error, retval);
+	nd->nd_ar = NULL;
+	nd->nd_flag &= ~ND_AUDITREC;
 }
 
 void
