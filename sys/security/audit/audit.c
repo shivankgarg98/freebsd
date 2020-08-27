@@ -358,7 +358,7 @@ audit_nfsrecord_ctor(void *mem, int size, void *arg, int flags)
 	ar->k_ar.ar_subj_egid = cred->cr_groups[0];
 	ar->k_ar.ar_subj_auid = cred->cr_audit.ai_auid;
 	ar->k_ar.ar_subj_asid = cred->cr_audit.ai_asid;
-	ar->k_ar.ar_subj_pid = 0; 
+	ar->k_ar.ar_subj_pid = 0;
 	ar->k_ar.ar_subj_amask = cred->cr_audit.ai_mask;
 	ar->k_ar.ar_subj_term_addr = cred->cr_audit.ai_termid;
 	ar->k_ar.ar_jailname[0] = '\0';
