@@ -485,24 +485,16 @@ STATNODE_COUNTER(shrinking_skipped,
 static void cache_zap_locked(struct namecache *ncp);
 static int vn_fullpath_hardlink(struct nameidata *ndp, char **retbuf,
     char **freebuf, size_t *buflen);
-<<<<<<< HEAD
-static int vn_fullpath_any(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t *buflen);
-static int vn_fullpath_dir(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
-static int vn_fullpath_any_locked(struct thread *td, struct vnode *vp,
-    struct vnode *rdir, char *buf, char **retbuf, size_t *buflen);
-static int vn_fullpath_dir_locked(struct thread *td, struct vnode *vp,
-    struct vnode *rdir, char *buf, char **retbuf, size_t *len,
-    bool slash_prefixed, size_t addend);
-=======
 static int vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen, bool slash_prefixed, size_t addend);
 static int vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen);
+static int vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf,
+    char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
->>>>>>> d8da243
+static int vn_fullpath_dir_locked(struct vnode *vp, struct vnode *rdir, char *buf,
+    char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
@@ -2596,30 +2588,19 @@ vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf)
 
 	if (__predict_false(vp == NULL))
 		return (EINVAL);
-	lktype = VOP_ISLOCKED(vn);
+	lktype = VOP_ISLOCKED(vp);
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
-<<<<<<< HEAD
-	/*
-	 * Should I check != LK_EXCLUSIVE && != LK_SHARED, because of
-	 * LK_EXCLOTHER. Same doubt for everywhere I added VOP_ISLOCKED.
-	 */
-	if (lktype)
-		error = vn_fullpath_any_locked(td, vn, rootvnode, buf, retbuf,
-		    &buflen);
-	else
-		error = vn_fullpath_any(td, vn, rootvnode, buf, retbuf,
-		    &buflen);
-	if (!error)
-=======
 	vfs_smr_enter();
 	error = vn_fullpath_any_smr(vp, rootvnode, buf, retbuf, &buflen, false, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
-		error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);
+		if (VOP_ISLOCKED(vp))
+			error = vn_fullpath_any_locked(vp, rootvnode, buf, retbuf, &buflen);
+		else
+			error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);
 	}
 	if (error == 0)
->>>>>>> d8da243
 		*freebuf = buf;
 	else
 		free(buf, M_TEMP);
@@ -2718,9 +2699,13 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf, size_t *bufl
 
 	vlp = VP2VNODELOCK(*vp);
 	mtx_lock(vlp);
-	TAILQ_FOREACH(ncp, &((*vp)->v_cache_dst), nc_dst) {
-		if ((ncp->nc_flag & NCF_ISDOTDOT) == 0)
-			break;
+	ncp = (*vp)->v_cache_dd;
+	if (ncp != NULL && (ncp->nc_flag & NCF_ISDOTDOT) == 0) {
+		KASSERT(ncp == vn_dd_from_dst(*vp),
+		    ("%s: mismatch for dd entry (%p != %p)", __func__,
+		    ncp, vn_dd_from_dst(*vp)));
+	} else {
+		ncp = vn_dd_from_dst(*vp);
 	}
 	if (ncp != NULL) {
 		if (*buflen < ncp->nc_nlen) {
@@ -2740,7 +2725,7 @@ vn_vptocnp_locked(struct vnode **vp, struct ucred *cred, char *buf, size_t *bufl
 		*vp = ncp->nc_dvp;
 		vref(*vp);
 		mtx_unlock(vlp);
-		vrele(dvp);
+		vunref(dvp);
 		return (0);
 	}
 	SDT_PROBE1(vfs, namecache, fullpath, miss, vp);
@@ -2886,8 +2871,8 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
  * This function works same as vn_fullpath_dir but for locked vnode *vp.
  */
 static int
-vn_fullpath_dir_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t *len, bool slash_prefixed, size_t addend)
+vn_fullpath_dir_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
+    size_t *len, bool slash_prefixed, size_t addend)
 {
 #ifdef KDTRACE_HOOKS
 	struct vnode *startvp = vp;
@@ -2899,8 +2884,7 @@ vn_fullpath_dir_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
 
 	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 	VNPASS(vp->v_usecount > 0, vp);
-	KASSERT(VOP_ISLOCKED(vp) != 0,
-	    ("vn_fullpath_dir_locked: vp not locked"));
+
 	buflen = *len;
 
 	if (!slash_prefixed) {
@@ -2967,10 +2951,9 @@ vn_fullpath_dir_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
 			break;
 		}
 		if (!islocked)
-			error = vn_vptocnp(&vp, td->td_ucred, buf, &buflen);
+			error = vn_vptocnp(&vp, curthread->td_ucred, buf, &buflen);
 		else
-			error = vn_vptocnp_locked(&vp, td->td_ucred, buf,
-			    &buflen);
+			error = vn_vptocnp_locked(&vp, curthread->td_ucred, buf, &buflen);
 		islocked = (VOP_ISLOCKED(vp)) ? true : false;
 		if (error)
 			break;
@@ -3198,43 +3181,44 @@ vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
  * This function works same as vn_fullpath_any but for locked vnode.
  */
 static int
-vn_fullpath_any_locked(struct thread *td, struct vnode *vp, struct vnode *rdir,
-    char *buf, char **retbuf, size_t *buflen)
+vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
+    size_t *buflen)
 {
 	size_t orig_buflen;
-	bool slash_prefixed;
-	int error, lktype;
+	bool slash_prefixed, islocked;
+	int error;
 
 	if (*buflen < 2)
 		return (EINVAL);
 
 	orig_buflen = *buflen;
+
 	vref(vp);
 	slash_prefixed = false;
 	if (vp->v_type != VDIR) {
 		*buflen -= 1;
 		buf[*buflen] = '\0';
-		error = vn_vptocnp_locked(&vp, td->td_ucred, buf, buflen);
+		error = vn_vptocnp_locked(&vp, curthread->td_ucred, buf, buflen);
+		islocked = VOP_ISLOCKED(vp) ? true : false;
 		if (error)
 			return (error);
-		lktype = VOP_ISLOCKED(vp);
 		if (*buflen == 0) {
-			if (lktype)
-				vunref(vp);
-			else
+			if (!islocked)
 				vrele(vp);
+			else
+				vunref(vp);
 			return (ENOMEM);
 		}
 		*buflen -= 1;
 		buf[*buflen] = '/';
 		slash_prefixed = true;
-		if (lktype == 0)
-			return (vn_fullpath_dir(td, vp, rdir, buf, retbuf,
-			    buflen, slash_prefixed, orig_buflen - *buflen));
+		if (!islocked)
+			return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, slash_prefixed,
+	    orig_buflen - *buflen));
 	}
 
-	return (vn_fullpath_dir_locked(td, vp, rdir, buf, retbuf, buflen,
-	    slash_prefixed, orig_buflen - *buflen));
+	return (vn_fullpath_dir_locked(vp, rdir, buf, retbuf, buflen, slash_prefixed,
+	    orig_buflen - *buflen));
 }
 
 /*
