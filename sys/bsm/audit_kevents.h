@@ -661,7 +661,7 @@
 #define	AUE_CLOSERANGE		43265	/* FreeBSD-specific. */
 
 /*
- * NFS RPC related events.
+ * NFSv2 and NFSv3 RPC related audit events.
  */
 #define	AUE_NFSRPC_GETATTR	43266
 #define	AUE_NFSRPC_SETATTR	43267

@@ -825,9 +825,9 @@ audit_nfsrpc_enter(struct nfsrv_descript *nd, struct thread *td)
 	KASSERT((nd->nd_flag & ND_AUDITREC) == 0,
 	    ("audit_nfsrpc_enter: ND_AUDITREC set"));
 
-	/* Currently, NFSv4 is not supported. */
+	/* Currently, NFSv4 code is in its feature branch currently. */
 	if (!(nd->nd_flag & ND_NFSV4))
-		event = nfsrv_auevent[nd->nd_procnum];
+		event = nfsrv3_auevent[nd->nd_procnum];
 	else
 		event = AUE_NULL;
 	/* NFS Procedure NULL do nothing. So, no need to audit this event. */

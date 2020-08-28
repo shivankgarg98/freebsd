@@ -460,7 +460,7 @@ static int nfsv3to4op[NFS_V3NPROCS] = {
 	NFSV4OP_COMMIT,
 };
 
-u_int16_t nfsrv_auevent[NFS_V3NPROCS] = {
+u_int16_t nfsrv3_auevent[NFS_V3NPROCS] = {
 	AUE_NULL,
 	AUE_NFSRPC_GETATTR,
 	AUE_NFSRPC_SETATTR,

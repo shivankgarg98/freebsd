@@ -191,10 +191,10 @@ au_evclassmap_init(void)
 	}
 
 	/*
-	 * Set up the initial event to class mapping for NFS RPC calls.
+	 * Set up the initial event to class mapping for NFS RPCs.
 	 */
 	for (i = 0; i < NFS_V3NPROCS; i++) {
-		au_evclassmap_insert(nfsrv_auevent[i], 0);
+		au_evclassmap_insert(nfsrv3_auevent[i], 0);
 	}
 }
 

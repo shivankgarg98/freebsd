@@ -2595,7 +2595,7 @@ vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf)
 	error = vn_fullpath_any_smr(vp, rootvnode, buf, retbuf, &buflen, false, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
-		if (VOP_ISLOCKED(vp))
+		if (lktype)
 			error = vn_fullpath_any_locked(vp, rootvnode, buf, retbuf, &buflen);
 		else
 			error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);

@@ -383,10 +383,13 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, SVCXPRT *xprt,
 	if (cacherep == RC_DOIT) {
 		if ((nd->nd_flag & ND_NFSV41) != 0)
 			nd->nd_xprt = xprt;
-		AUDIT_NFSRPC_ENTER(nd, curthread);
-		AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
+		if ((nd->nd_flag & (ND_NFSV2 | ND_NFSV3)) != 0) {
+			AUDIT_NFSRPC_ENTER(nd, curthread);
+			AUDIT_NFSARG_NETSOCKADDR(nd, nd->nd_nam);
+		}
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers);
-		AUDIT_NFSRPC_EXIT(nd, curthread);
+		if ((nd->nd_flag & (ND_NFSV2 | ND_NFSV3)) != 0)
+			AUDIT_NFSRPC_EXIT(nd, curthread);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&
 			    (nd->nd_flag & ND_SAVEREPLY) != 0) {

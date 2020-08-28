@@ -566,7 +566,7 @@ struct nfscred {
  * This array indicates the audit event number corresponding to NFSv3 and
  * NFSv2 RPCs. This table doesn't support NFSv4.
  */
-extern u_int16_t nfsrv_auevent[NFS_V3NPROCS];
+extern u_int16_t nfsrv3_auevent[NFS_V3NPROCS];
 
 /*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
