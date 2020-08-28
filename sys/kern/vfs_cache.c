@@ -2775,6 +2775,7 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 	struct vnode *vp1;
 	size_t buflen;
 	int error;
+	bool islocked;
 
 	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
 	VNPASS(vp->v_usecount > 0, vp);
@@ -2791,112 +2792,7 @@ vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
 
 	SDT_PROBE1(vfs, namecache, fullpath, entry, vp);
 	counter_u64_add(numfullpathcalls, 1);
-	while (vp != rdir && vp != rootvnode) {
-		/*
-		 * The vp vnode must be already fully constructed,
-		 * since it is either found in namecache or obtained
-		 * from VOP_VPTOCNP().  We may test for VV_ROOT safely
-		 * without obtaining the vnode lock.
-		 */
-		if ((vp->v_vflag & VV_ROOT) != 0) {
-			vn_lock(vp, LK_RETRY | LK_SHARED);
-
-			/*
-			 * With the vnode locked, check for races with
-			 * unmount, forced or not.  Note that we
-			 * already verified that vp is not equal to
-			 * the root vnode, which means that
-			 * mnt_vnodecovered can be NULL only for the
-			 * case of unmount.
-			 */
-			if (VN_IS_DOOMED(vp) ||
-			    (vp1 = vp->v_mount->mnt_vnodecovered) == NULL ||
-			    vp1->v_mountedhere != vp->v_mount) {
-				vput(vp);
-				error = ENOENT;
-				SDT_PROBE3(vfs, namecache, fullpath, return,
-				    error, vp, NULL);
-				break;
-			}
-
-			vref(vp1);
-			vput(vp);
-			vp = vp1;
-			continue;
-		}
-		if (vp->v_type != VDIR) {
-			vrele(vp);
-			counter_u64_add(numfullpathfail1, 1);
-			error = ENOTDIR;
-			SDT_PROBE3(vfs, namecache, fullpath, return,
-			    error, vp, NULL);
-			break;
-		}
-		error = vn_vptocnp(&vp, curthread->td_ucred, buf, &buflen);
-		if (error)
-			break;
-		if (buflen == 0) {
-			vrele(vp);
-			error = ENOMEM;
-			SDT_PROBE3(vfs, namecache, fullpath, return, error,
-			    startvp, NULL);
-			break;
-		}
-		buf[--buflen] = '/';
-		slash_prefixed = true;
-	}
-	if (error)
-		return (error);
-	if (!slash_prefixed) {
-		if (buflen == 0) {
-			vrele(vp);
-			counter_u64_add(numfullpathfail4, 1);
-			SDT_PROBE3(vfs, namecache, fullpath, return, ENOMEM,
-			    startvp, NULL);
-			return (ENOMEM);
-		}
-		buf[--buflen] = '/';
-	}
-	counter_u64_add(numfullpathfound, 1);
-	vrele(vp);
-
-	*retbuf = buf + buflen;
-	SDT_PROBE3(vfs, namecache, fullpath, return, 0, startvp, *retbuf);
-	*len -= buflen;
-	*len += addend;
-	return (0);
-}
-
-/*
- * This function works same as vn_fullpath_dir but for locked vnode *vp.
- */
-static int
-vn_fullpath_dir_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
-    size_t *len, bool slash_prefixed, size_t addend)
-{
-#ifdef KDTRACE_HOOKS
-	struct vnode *startvp = vp;
-#endif
-	struct vnode *vp1;
-	size_t buflen;
-	int error;
-	bool islocked = true;
-
-	VNPASS(vp->v_type == VDIR || VN_IS_DOOMED(vp), vp);
-	VNPASS(vp->v_usecount > 0, vp);
-
-	buflen = *len;
-
-	if (!slash_prefixed) {
-		MPASS(*len >= 2);
-		buflen--;
-		buf[buflen] = '\0';
-	}
-
-	error = 0;
-
-	SDT_PROBE1(vfs, namecache, fullpath, entry, vp);
-	counter_u64_add(numfullpathcalls, 1);
+	islocked = (VOP_ISLOCKED(vp)) ? true : false;
 	while (vp != rdir && vp != rootvnode) {
 		/*
 		 * The vp vnode must be already fully constructed,
@@ -3185,7 +3081,7 @@ vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **r
     size_t *buflen)
 {
 	size_t orig_buflen;
-	bool slash_prefixed, islocked;
+	bool slash_prefixed;
 	int error;
 
 	if (*buflen < 2)
@@ -3199,11 +3095,10 @@ vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **r
 		*buflen -= 1;
 		buf[*buflen] = '\0';
 		error = vn_vptocnp_locked(&vp, curthread->td_ucred, buf, buflen);
-		islocked = VOP_ISLOCKED(vp) ? true : false;
 		if (error)
 			return (error);
 		if (*buflen == 0) {
-			if (!islocked)
+			if (VOP_ISLOCKED(vp) == 0)
 				vrele(vp);
 			else
 				vunref(vp);
@@ -3212,12 +3107,9 @@ vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **r
 		*buflen -= 1;
 		buf[*buflen] = '/';
 		slash_prefixed = true;
-		if (!islocked)
-			return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, slash_prefixed,
-	    orig_buflen - *buflen));
 	}
 
-	return (vn_fullpath_dir_locked(vp, rdir, buf, retbuf, buflen, slash_prefixed,
+	return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, slash_prefixed,
 	    orig_buflen - *buflen));
 }
 
