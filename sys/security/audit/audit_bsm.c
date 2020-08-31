@@ -2193,7 +2193,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	if (jail_tok != NULL)
 		kau_write(rec, jail_tok);
 	kau_write(rec, subj_tok);
-	tok = au_to_return32(au_errno_to_bsm(ar->ar_errno), ar->ar_retval);
+	if (kar->kaudit_record_type == AUDIT_NFSRPC_RECORD) {
+		tok = au_to_returnNFS(au_errno_to_bsm(ar->ar_errno), ar->ar_retval);
+	} else
+		tok = au_to_return32(au_errno_to_bsm(ar->ar_errno), ar->ar_retval);
 	kau_write(rec, tok);  /* Every record gets a return token */
 
 	kau_close(rec, &ar->ar_endtime, ar->ar_event);

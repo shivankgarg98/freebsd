@@ -887,6 +887,21 @@ au_to_return64(char status, u_int64_t ret)
 }
 
 token_t *
+au_to_returnNFS(u_int32_t status, u_int32_t ret)
+{
+	token_t *t;
+	u_char *dptr = NULL;
+
+	GET_TOKEN_AREA(t, dptr, sizeof(u_char) + 2 * sizeof(u_int32_t));
+
+	ADD_U_CHAR(dptr, AUT_RETURNNFS);
+	ADD_U_INT32(dptr, status);
+	ADD_U_INT32(dptr, ret);
+
+	return (t);
+}
+
+token_t *
 au_to_return(char status, u_int32_t ret)
 {
 
