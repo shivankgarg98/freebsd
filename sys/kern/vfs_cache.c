@@ -489,8 +489,6 @@ static int vn_fullpath_any_smr(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen, bool slash_prefixed, size_t addend);
 static int vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen);
-static int vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf,
-    char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
 static int vn_fullpath_dir_locked(struct vnode *vp, struct vnode *rdir, char *buf,
@@ -2584,21 +2582,17 @@ vn_fullpath_global(struct vnode *vp, char **retbuf, char **freebuf)
 {
 	char *buf;
 	size_t buflen;
-	int error, lktype;
+	int error;
 
 	if (__predict_false(vp == NULL))
 		return (EINVAL);
-	lktype = VOP_ISLOCKED(vp);
 	buflen = MAXPATHLEN;
 	buf = malloc(buflen, M_TEMP, M_WAITOK);
 	vfs_smr_enter();
 	error = vn_fullpath_any_smr(vp, rootvnode, buf, retbuf, &buflen, false, 0);
 	VFS_SMR_ASSERT_NOT_ENTERED();
 	if (error < 0) {
-		if (lktype)
-			error = vn_fullpath_any_locked(vp, rootvnode, buf, retbuf, &buflen);
-		else
-			error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);
+		error = vn_fullpath_any(vp, rootvnode, buf, retbuf, &buflen);
 	}
 	if (error == 0)
 		*freebuf = buf;
@@ -2981,43 +2975,6 @@ out_abort:
 
 static int
 vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
-    size_t *buflen)
-{
-	size_t orig_buflen;
-	bool slash_prefixed;
-	int error;
-
-	if (*buflen < 2)
-		return (EINVAL);
-
-	orig_buflen = *buflen;
-
-	vref(vp);
-	slash_prefixed = false;
-	if (vp->v_type != VDIR) {
-		*buflen -= 1;
-		buf[*buflen] = '\0';
-		error = vn_vptocnp(&vp, curthread->td_ucred, buf, buflen);
-		if (error)
-			return (error);
-		if (*buflen == 0) {
-			vrele(vp);
-			return (ENOMEM);
-		}
-		*buflen -= 1;
-		buf[*buflen] = '/';
-		slash_prefixed = true;
-	}
-
-	return (vn_fullpath_dir(vp, rdir, buf, retbuf, buflen, slash_prefixed,
-	    orig_buflen - *buflen));
-}
-
-/*
- * This function works same as vn_fullpath_any but for locked vnode.
- */
-static int
-vn_fullpath_any_locked(struct vnode *vp, struct vnode *rdir, char *buf, char **retbuf,
     size_t *buflen)
 {
 	size_t orig_buflen;
