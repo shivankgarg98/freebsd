@@ -491,8 +491,6 @@ static int vn_fullpath_any(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *buflen);
 static int vn_fullpath_dir(struct vnode *vp, struct vnode *rdir, char *buf,
     char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
-static int vn_fullpath_dir_locked(struct vnode *vp, struct vnode *rdir, char *buf,
-    char **retbuf, size_t *len, bool slash_prefixed, size_t addend);
 
 static MALLOC_DEFINE(M_VFSCACHE, "vfscache", "VFS name cache entries");
 
